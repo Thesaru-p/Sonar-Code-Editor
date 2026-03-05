@@ -1,0 +1,115 @@
+export interface FileNode {
+  name: string;
+  type: 'file' | 'directory';
+  path: string;
+  children?: FileNode[];
+  extension?: string;
+}
+
+export interface Team {
+  $id?: string;
+  teamName: string;
+  password?: string;
+  role: 'team' | 'admin';
+  createdAt?: string;
+}
+
+export interface Session {
+  $id?: string;
+  teamId: string;
+  teamName: string;
+  status: 'online' | 'offline';
+  lastSeen: string;
+  ipAddress?: string;
+}
+
+export interface ActivityLog {
+  $id?: string;
+  teamId: string;
+  teamName: string;
+  currentWindow: string;
+  currentFile: string;
+  status: 'online' | 'offline';
+  timestamp: string;
+  event?: 'went_online' | 'went_offline' | 'heartbeat';
+  appName?: string;
+  windowTitle?: string;
+}
+
+export interface StatusEntry {
+  status: 'online' | 'offline';
+  from: string;
+  to: string;
+  duration: number;
+}
+
+export interface AppUsageEntry {
+  appName: string;
+  windowTitle: string;
+  firstSeen: string;
+  lastSeen: string;
+  totalTime: number;
+}
+
+export interface Report {
+  $id?: string;
+  teamId: string;
+  teamName: string;
+  sessionStart: string;
+  sessionEnd: string;
+  generatedAt: string;
+  reportData: string;
+}
+
+export interface ReportData {
+  team: Team;
+  sessionStart: string;
+  sessionEnd: string;
+  statusTimeline: StatusEntry[];
+  appUsage: AppUsageEntry[];
+  summary: {
+    totalDuration: number;
+    totalOnlineTime: number;
+    totalOfflineTime: number;
+    disconnections: number;
+    longestOnlineStretch: number;
+    percentOnline: number;
+    percentInIDE: number;
+    appSwitches: number;
+  };
+}
+
+export interface HeartbeatPayload {
+  teamName: string;
+  teamId: string;
+  currentWindow: string;
+  currentFile: string;
+  status: 'online' | 'offline';
+  timestamp: string;
+  appName?: string;
+}
+
+export interface ElectronAPI {
+  fs: {
+    readDirectory: (path: string) => Promise<FileNode[]>;
+    readFile: (path: string) => Promise<string>;
+    writeFile: (path: string, content: string) => Promise<void>;
+    createFile: (path: string) => Promise<void>;
+    createFolder: (path: string) => Promise<void>;
+    deleteItem: (path: string) => Promise<void>;
+    renameItem: (oldPath: string, newPath: string) => Promise<void>;
+    openFolderDialog: () => Promise<string | null>;
+  };
+  monitoring: {
+    start: (teamName: string, teamId: string) => void;
+    stop: () => void;
+    setCurrentFile: (filePath: string) => void;
+  };
+  network: {
+    onStatusChange: (callback: (status: boolean) => void) => () => void;
+  };
+  dialog: {
+    showError: (message: string) => void;
+    showInfo: (message: string) => void;
+  };
+}
