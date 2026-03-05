@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { ArrowLeft, Save, RefreshCw, Palette, Settings as SettingsIcon, Monitor, Moon, Sun } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, X } from 'lucide-react';
 import './SettingsModal.css';
 
 interface SettingsModalProps {
@@ -23,7 +23,9 @@ export default function SettingsModal({
   theme,
   onThemeChange
 }: SettingsModalProps) {
-  
+  const [activeTab, setActiveTab] = useState('Text Editor');
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -37,105 +39,116 @@ export default function SettingsModal({
 
   if (!isOpen) return null;
 
+  const matchesSearch = (text: string) => 
+    searchQuery === '' || text.toLowerCase().includes(searchQuery.toLowerCase());
+
+  const isSearching = searchQuery.trim().length > 0;
+
+  const showTextEditor = !isSearching 
+    ? activeTab === 'Text Editor' 
+    : (matchesSearch('Text Editor') || matchesSearch('Auto Save') || matchesSearch('Hot Reload') || matchesSearch('Controls auto save') || matchesSearch('Instantly refresh'));
+
+  const showAppearance = !isSearching 
+    ? activeTab === 'Appearance' 
+    : (matchesSearch('Appearance') || matchesSearch('Color Theme') || matchesSearch('interface theme'));
+
   return (
-    <div className="settings-page-overlay">
-      <div className="settings-page-header">
-        <button className="settings-back-button" onClick={onClose}>
-          <ArrowLeft size={18} />
-          <span>Back</span>
-        </button>
+    <div className="vscode-settings-overlay">
+      <div className="vscode-settings-header-tabs">
+        <div className="vscode-settings-tab active">User</div>
+        <button className="vscode-settings-close" onClick={onClose}><X size={16}/></button>
       </div>
 
-      <div className="settings-page-container">
-        <div className="settings-page-title">
-          <SettingsIcon size={28} className="settings-title-icon" />
-          <h1>Settings</h1>
+      <div className="vscode-settings-searchbar-container">
+        <div className="vscode-search-input-wrapper">
+          <Search size={16} className="vscode-search-icon" />
+          <input 
+            type="text" 
+            placeholder="Search settings" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="vscode-search-input"
+          />
         </div>
-        
-        <div className="settings-page-content">
-          <div className="settings-section">
-            <h2 className="settings-section-title">Editor Preferences</h2>
-            
-            <div className="setting-card">
-              <div className="setting-icon-wrapper save-icon-wrapper">
-                <Save size={20} />
-              </div>
-              <div className="setting-details">
-                <h3>Auto Save</h3>
-                <p>Automatically save files after making changes in the editor.</p>
-              </div>
-              <div className="setting-control">
-                <label className="sleek-toggle">
-                  <input 
-                    type="checkbox" 
-                    checked={autoSave} 
-                    onChange={(e) => onAutoSaveChange(e.target.checked)} 
-                  />
-                  <span className="sleek-slider"></span>
-                </label>
-              </div>
-            </div>
+      </div>
 
-            <div className="setting-card">
-              <div className="setting-icon-wrapper hotreload-icon-wrapper">
-                <RefreshCw size={20} />
-              </div>
-              <div className="setting-details">
-                <h3>Hot Reload</h3>
-                <p>Instantly refresh the preview panel when files are saved.</p>
-              </div>
-              <div className="setting-control">
-                <label className="sleek-toggle">
-                  <input 
-                    type="checkbox" 
-                    checked={hotReload} 
-                    onChange={(e) => onHotReloadChange(e.target.checked)} 
-                  />
-                  <span className="sleek-slider"></span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div className="settings-section">
-            <h2 className="settings-section-title">Appearance</h2>
-            
-            <div className="setting-card">
-              <div className="setting-icon-wrapper theme-icon-wrapper">
-                <Palette size={20} />
-              </div>
-              <div className="setting-details">
-                <h3>Theme Preference</h3>
-                <p>Select your interface theme or let it match your system.</p>
-              </div>
-              <div className="setting-control">
-                <div className="theme-selector">
-                  <button 
-                    className={`theme-btn ${theme === 'system' ? 'active' : ''}`}
-                    onClick={() => onThemeChange('system')}
-                  >
-                    <Monitor size={16} />
-                    System
-                  </button>
-                  <button 
-                    className={`theme-btn ${theme === 'light' ? 'active' : ''}`}
-                    onClick={() => onThemeChange('light')}
-                  >
-                    <Sun size={16} />
-                    Light
-                  </button>
-                  <button 
-                    className={`theme-btn ${theme === 'dark' ? 'active' : ''}`}
-                    onClick={() => onThemeChange('dark')}
-                  >
-                    <Moon size={16} />
-                    Dark
-                  </button>
+      <div className="vscode-settings-body">
+        <div className="vscode-settings-sidebar">
+           <ul className="vscode-settings-tree">
+             <li className={activeTab === 'Text Editor' ? 'active' : ''} onClick={() => setActiveTab('Text Editor')}>Text Editor</li>
+             <li className={activeTab === 'Appearance' ? 'active' : ''} onClick={() => setActiveTab('Appearance')}>Appearance</li>
+           </ul>
+        </div>
+        <div className="vscode-settings-content">
+          {showTextEditor && (
+            <div className="vscode-settings-section">
+              <h2 className="vscode-settings-section-title">Text Editor</h2>
+              
+              {(isSearching ? (matchesSearch('Auto Save') || matchesSearch('Controls auto save') || matchesSearch('Text Editor')) : true) && (
+                <div className="vscode-setting-item">
+                  <div className="vscode-setting-header">
+                    <span className="vscode-setting-title">Editor: <span className="highlight">Auto Save</span></span>
+                    <div className="vscode-setting-description">Controls auto save of dirty editors.</div>
+                  </div>
+                  <div className="vscode-setting-control">
+                    <select 
+                      className="vscode-select" 
+                      value={autoSave ? 'on' : 'off'} 
+                      onChange={(e) => onAutoSaveChange(e.target.value === 'on')}
+                    >
+                      <option value="off">off</option>
+                      <option value="on">afterDelay (on)</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </div>
+              )}
 
+              {(isSearching ? (matchesSearch('Hot Reload') || matchesSearch('Instantly refresh') || matchesSearch('Text Editor')) : true) && (
+                <div className="vscode-setting-item">
+                  <div className="vscode-setting-header">
+                    <span className="vscode-setting-title">Preview: <span className="highlight">Hot Reload</span></span>
+                    <div className="vscode-setting-description">Instantly refresh the preview panel when files are saved.</div>
+                  </div>
+                  <div className="vscode-setting-control">
+                    <label className="vscode-checkbox-label">
+                      <input 
+                        type="checkbox" 
+                        className="vscode-checkbox" 
+                        checked={hotReload} 
+                        onChange={(e) => onHotReloadChange(e.target.checked)} 
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {showAppearance && (
+            <div className="vscode-settings-section">
+              <h2 className="vscode-settings-section-title">Appearance</h2>
+              
+              {(isSearching ? (matchesSearch('Color Theme') || matchesSearch('interface theme') || matchesSearch('Appearance')) : true) && (
+                <div className="vscode-setting-item">
+                  <div className="vscode-setting-header">
+                    <span className="vscode-setting-title">Workbench: <span className="highlight">Color Theme</span></span>
+                    <div className="vscode-setting-description">Select your interface theme or let it match your system.</div>
+                  </div>
+                  <div className="vscode-setting-control">
+                     <select 
+                      className="vscode-select" 
+                      value={theme} 
+                      onChange={(e) => onThemeChange(e.target.value)}
+                    >
+                      <option value="system">System Default</option>
+                      <option value="light">Light Theme</option>
+                      <option value="dark">Dark Theme</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

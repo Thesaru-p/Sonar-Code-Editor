@@ -1,229 +1,242 @@
-.settings-page-overlay {
+.vscode-settings-overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: var(--bg-primary);
+  background-color: var(--bg-primary, #1e1e1e);
   z-index: 50;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  animation: fadeIn 0.2s ease-out;
+  color: var(--text-primary, #ccc);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+  animation: fadeIn 0.15s ease-out;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-.settings-page-header {
+.vscode-settings-header-tabs {
   display: flex;
   align-items: center;
-  padding: 16px 24px;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  background-color: var(--bg-secondary, #252526);
+  height: 35px;
   -webkit-app-region: drag;
+  border-bottom: 1px solid var(--border);
 }
 
-.settings-back-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: transparent;
-  border: none;
+.vscode-settings-tab {
+  padding: 0 16px;
+  line-height: 35px;
+  font-size: 13px;
   color: var(--text-muted);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 8px 12px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+  border-top: 1px solid transparent;
+  cursor: default;
   -webkit-app-region: no-drag;
 }
 
-.settings-back-button:hover {
-  background-color: var(--bg-hover);
+.vscode-settings-tab.active {
   color: var(--text-primary);
-}
-
-.settings-page-container {
-  max-width: 800px;
-  margin: 0 auto;
-  width: 100%;
-  padding: 40px 24px 80px;
-}
-
-.settings-page-title {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 48px;
-}
-
-.settings-title-icon {
-  color: var(--accent);
-}
-
-.settings-page-title h1 {
-  font-size: 32px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-  letter-spacing: -0.5px;
-}
-
-.settings-section {
-  margin-bottom: 40px;
-}
-
-.settings-section-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin: 0 0 16px 8px;
-}
-
-.setting-card {
-  display: flex;
-  align-items: center;
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border);
-  padding: 20px 24px;
-  margin-bottom: 12px;
-  border-radius: 12px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.setting-card:hover {
-  border-color: var(--accent);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.setting-icon-wrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  border-top: 1px solid var(--accent);
   background-color: var(--bg-primary);
+}
+
+.vscode-settings-close {
+  margin-left: auto;
+  margin-right: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 20px;
-  flex-shrink: 0;
+  height: 28px;
+  width: 28px;
+  border-radius: 4px;
+  -webkit-app-region: no-drag;
 }
 
-.save-icon-wrapper { color: var(--success); }
-.hotreload-icon-wrapper { color: var(--accent); }
-.theme-icon-wrapper { color: #db2777; }
-
-.setting-details {
-  flex: 1;
-}
-
-.setting-details h3 {
-  font-size: 16px;
-  font-weight: 500;
+.vscode-settings-close:hover {
+  background-color: var(--bg-hover);
   color: var(--text-primary);
-  margin: 0 0 6px 0;
 }
 
-.setting-details p {
-  font-size: 14px;
+.vscode-settings-searchbar-container {
+  padding: 12px 20px;
+  background-color: var(--bg-primary);
+}
+
+.vscode-search-input-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+}
+
+.vscode-search-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
   color: var(--text-muted);
+}
+
+.vscode-search-input {
+  width: 100%;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 6px 10px 6px 32px;
+  font-size: 13px;
+  outline: none;
+  border-radius: 2px;
+}
+
+.vscode-search-input:focus {
+  border-color: var(--accent);
+}
+
+.vscode-settings-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  background-color: var(--bg-primary);
+}
+
+.vscode-settings-sidebar {
+  width: 250px;
+  padding: 14px 0;
+  overflow-y: auto;
+}
+
+.vscode-settings-tree {
+  list-style: none;
+  padding: 0;
   margin: 0;
+}
+
+.vscode-settings-tree li {
+  padding: 4px 14px 4px 34px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: background-color 0.1s;
+}
+
+.vscode-settings-tree li:hover {
+  background-color: var(--bg-hover);
+}
+
+.vscode-settings-tree li.active {
+  background-color: var(--bg-hover);
+}
+
+.vscode-settings-content {
+  flex: 1;
+  padding: 12px 24px 40px;
+  overflow-y: auto;
+}
+
+.vscode-settings-section {
+  margin-bottom: 40px;
+}
+
+.vscode-settings-section-title {
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--text-primary);
+  margin-bottom: 24px;
+  margin-top: 0;
+}
+
+.vscode-setting-item {
+  margin-bottom: 24px;
+}
+
+.vscode-setting-title {
+  display: block;
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.vscode-setting-title .highlight {
+  font-weight: 500;
+}
+
+.vscode-setting-description {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
   line-height: 1.4;
 }
 
-.setting-control {
-  margin-left: 24px;
+.vscode-setting-control {
+  margin-top: 8px;
 }
 
-/* Sleek Toggle Switch */
-.sleek-toggle {
-  position: relative;
-  display: inline-block;
-  width: 44px;
-  height: 24px;
-}
-
-.sleek-toggle input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.sleek-slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--bg-hover);
-  transition: 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-  border-radius: 24px;
+.vscode-select {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
   border: 1px solid var(--border);
+  padding: 4px;
+  border-radius: 2px;
+  font-size: 13px;
+  min-width: 250px;
+  outline: none;
+  font-family: inherit;
 }
 
-.sleek-slider:before {
-  position: absolute;
+.vscode-select:focus {
+  border-color: var(--accent);
+}
+
+.vscode-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.vscode-checkbox {
+  appearance: none;
+  background-color: var(--bg-secondary);
+  margin: 0;
+  font: inherit;
+  color: currentColor;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+  outline: none;
+}
+
+.vscode-checkbox::before {
   content: "";
-  height: 18px;
-  width: 18px;
-  left: 2px;
-  bottom: 2px;
-  background-color: var(--text-muted);
-  transition: 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-  border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  width: 10px;
+  height: 10px;
+  transform: scale(0);
+  transition: 120ms transform ease-in-out;
+  box-shadow: inset 1em 1em var(--text-primary);
+  background-color: CanvasText;
+  transform-origin: center;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
 }
 
-.sleek-toggle input:checked + .sleek-slider {
+.vscode-checkbox:checked::before {
+  transform: scale(1);
+}
+
+.vscode-checkbox:checked {
   background-color: var(--accent);
   border-color: var(--accent);
 }
 
-.sleek-toggle input:checked + .sleek-slider:before {
-  transform: translateX(20px);
-  background-color: #ffffff;
-}
-
-/* Theme Selector */
-.theme-selector {
-  display: flex;
-  background-color: var(--bg-primary);
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  padding: 4px;
-  gap: 4px;
-}
-
-.theme-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.theme-btn:hover {
-  color: var(--text-primary);
-}
-
-.theme-btn.active {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+.vscode-checkbox:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
 }
