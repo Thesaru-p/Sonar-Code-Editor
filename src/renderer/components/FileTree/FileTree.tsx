@@ -441,8 +441,10 @@ export default function FileTree({ workspaceRoot, onOpenFolder, onFileClick, act
         setSelectedFolder(workspaceRoot);
       }}
     >
-      <div className="tree-header">
-        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginRight: '8px' }}>Explorer</span>
+      <div className="tree-header" title={workspaceRoot}>
+        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginRight: '8px' }}>
+          {workspaceRoot.split(/[/\\]/).pop()}
+        </span>
         <div className="tree-actions">
           <button
             className="tree-action-btn"

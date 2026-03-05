@@ -328,6 +328,8 @@ export default function IDE() {
   const openFolder = useCallback(async () => {
     const result = await window.electronAPI.fs.openFolderDialog();
     if (result) {
+      setTabs([]);
+      setActiveTabPath(null);
       setWorkspaceRoot(result.path);
     }
   }, []);
