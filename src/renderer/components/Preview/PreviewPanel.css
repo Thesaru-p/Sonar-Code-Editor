@@ -65,6 +65,11 @@
   font-family: inherit;
 }
 
+.preview-address-bar:focus {
+  outline: 1px solid var(--accent);
+  border-color: var(--accent);
+}
+
 .preview-body {
   flex: 1;
   position: relative;

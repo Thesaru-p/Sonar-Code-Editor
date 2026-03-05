@@ -27,6 +27,7 @@ export default function PreviewPanel({ workspaceRoot, onOpenInTab, isFullTab, on
   const consoleEndRef = useRef<HTMLDivElement>(null);
   const [serverUrl, setServerUrl] = useState<string | null>(null);
   const [currentUrl, setCurrentUrl] = useState<string>('');
+  const [inputUrl, setInputUrl] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
@@ -49,6 +50,7 @@ export default function PreviewPanel({ workspaceRoot, onOpenInTab, isFullTab, on
           const url = `http://127.0.0.1:${port}`;
           setServerUrl(url);
           setCurrentUrl(url);
+          setInputUrl(url);
         }
       } catch (err) {
         console.error('Failed to start preview server:', err);
@@ -70,6 +72,7 @@ export default function PreviewPanel({ workspaceRoot, onOpenInTab, isFullTab, on
     };
     const onNavigate = (e: any) => {
       setCurrentUrl(e.url);
+      setInputUrl(e.url);
     };
 
     const onConsoleMessage = (e: any) => {
@@ -127,6 +130,32 @@ export default function PreviewPanel({ workspaceRoot, onOpenInTab, isFullTab, on
   const toggleConsole = useCallback(() => {
     setConsoleOpen((v) => !v);
   }, []);
+
+  const handleUrlSubmit = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    if (!webviewRef.current || !serverUrl) return;
+
+    let targetUrl = inputUrl.trim();
+    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+      if (targetUrl.startsWith('/')) {
+        targetUrl = serverUrl + targetUrl;
+      } else {
+        targetUrl = serverUrl + '/' + targetUrl;
+      }
+    }
+
+    try {
+      const urlObj = new URL(targetUrl);
+      if (urlObj.hostname !== 'localhost' && urlObj.hostname !== '127.0.0.1') {
+        targetUrl = serverUrl;
+      }
+    } catch {
+      targetUrl = serverUrl;
+    }
+
+    setInputUrl(targetUrl);
+    (webviewRef.current as any).loadURL(targetUrl);
+  }, [inputUrl, serverUrl]);
 
   const clearConsole = useCallback(() => {
     setConsoleLogs([]);
@@ -222,9 +251,15 @@ export default function PreviewPanel({ workspaceRoot, onOpenInTab, isFullTab, on
           <Home size={16} />
         </button>
 
-        <div className="preview-address-bar" title={currentUrl}>
-          {currentUrl}
-        </div>
+        <form className="preview-address-bar-form" onSubmit={handleUrlSubmit} style={{ flex: 1, display: 'flex' }}>
+          <input
+            type="text"
+            className="preview-address-bar input"
+            value={inputUrl}
+            onChange={(e) => setInputUrl(e.target.value)}
+            title={inputUrl}
+          />
+        </form>
 
         {!isFullTab && onOpenInTab && (
           <button className="preview-btn" onClick={onOpenInTab} title="Open in Editor Tab">
