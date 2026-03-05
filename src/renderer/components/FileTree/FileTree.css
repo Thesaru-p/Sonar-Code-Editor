@@ -9,6 +9,10 @@
   font-family: 'Segoe WPC', 'Segoe UI', sans-serif;
 }
 
+.platform-windows .file-tree-panel {
+  padding-top: 0;
+}
+
 .tree-header {
   padding: 8px 16px;
   display: flex;
