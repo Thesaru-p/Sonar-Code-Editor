@@ -37,7 +37,7 @@ export default function AdminDashboard() {
     const now = Date.now();
     return teamsList.map((s) => {
       const lastSeenMs = new Date(s.lastSeen).getTime();
-      const stale = now - lastSeenMs > APP_CONFIG.HEARTBEAT_INTERVAL_MS * 2;
+      const stale = now - lastSeenMs > APP_CONFIG.HEARTBEAT_INTERVAL_MS * 3;
       if (stale && s.status === 'online') return { ...s, status: 'offline' as const };
       return s;
     });
@@ -60,18 +60,31 @@ export default function AdminDashboard() {
     }
 
     const now = Date.now();
-    const updated = sessions
+    const fetched = sessions
       .filter((s) => !adminIds.has(s.teamId))
       .map((s) => {
         const lastSeenMs = new Date(s.lastSeen).getTime();
-        const stale = now - lastSeenMs > APP_CONFIG.HEARTBEAT_INTERVAL_MS * 2;
+        const stale = now - lastSeenMs > APP_CONFIG.HEARTBEAT_INTERVAL_MS * 3;
         return {
           ...s,
           status: stale ? 'offline' : s.status,
           offlineSync: syncMap.get(s.teamId),
         } as TeamStatus;
       });
-    setTeams(updated);
+    setTeams((prev) => {
+      const prevMap = new Map(prev.map((t) => [t.teamId, t]));
+      return fetched.map((s) => {
+        const existing = prevMap.get(s.teamId);
+        if (!existing) return s;
+        const existingMs = new Date(existing.lastSeen).getTime();
+        const fetchedMs = new Date(s.lastSeen).getTime();
+        // Preserve more recent realtime data over potentially stale DB data
+        if (existingMs > fetchedMs) {
+          return { ...s, lastSeen: existing.lastSeen, status: existing.status, currentWindow: existing.currentWindow, currentFile: existing.currentFile, lastActivity: existing.lastActivity };
+        }
+        return { ...s, currentWindow: existing.currentWindow, currentFile: existing.currentFile, lastActivity: existing.lastActivity };
+      });
+    });
     setActivityLogs(logs);
     setLastUpdated(new Date());
     setLoading(false);
