@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Team } from '../../shared/types';
 import { upsertActivityLog, updateSessionLastSeen, mergeOfflineSyncData, OfflineSyncSummary } from '../services/appwrite';
 import { enqueueLog, getQueue, clearQueue, QueuedLog } from '../services/localStore';
+import { getActivityLog } from '../services/activityLogger';
 import { HeartbeatPayload } from '../../shared/types';
 
 export function useMonitoring(user: Team | null, isOnline: boolean, currentFile: string) {
@@ -27,6 +28,11 @@ export function useMonitoring(user: Team | null, isOnline: boolean, currentFile:
 
     if (eventsAPI) {
       eventsAPI.onHeartbeat(async (payload: HeartbeatPayload) => {
+        // Attach all local activity events from localStorage
+        const localEvents = getActivityLog();
+        if (localEvents.length > 0) {
+          payload.activityEvents = localEvents;
+        }
         // Upsert single activity log row + update session
         const logResult = upsertActivityLog(payload).catch(() => 'failed');
         const sessionResult = updateSessionLastSeen(payload.teamId).catch(() => 'failed');

@@ -145,18 +145,45 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString();
 }
 
-type TabKey = 'summary' | 'timeline' | 'apps' | 'risk';
+function formatEventType(type: string, details?: string): string {
+  switch (type) {
+    case 'status_online': return 'Went Online';
+    case 'status_offline': return 'Went Offline';
+    case 'app_focus': return 'Returned to IDE';
+    case 'app_blur': {
+      if (details) {
+        const match = details.match(/^(?:Switched to|Active app):\s*(.+)$/i);
+        if (match) {
+          const raw = match[1].trim();
+          const parts = raw.split(' - ');
+          const appName = parts[parts.length - 1].trim() || raw;
+          return `Switched To ${appName}`;
+        }
+      }
+      return 'Switched Away';
+    }
+    case 'clipboard_copy': return 'Clipboard Copy';
+    case 'clipboard_paste_external': return 'External Copy';
+    default: return type;
+  }
+}
+
+type TabKey = 'summary' | 'timeline' | 'apps' | 'risk' | 'activityLog';
 
 export default function ReportModal({ team, onClose }: ReportModalProps) {
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('summary');
+  const [activityEvents, setActivityEvents] = useState<Array<{ type: string; timestamp: string; details?: string }>>([]);
 
   useEffect(() => {
     getActivityLogForTeam(team.teamId || team.$id!).then((log) => {
       if (log) {
         const sync = parseSyncData(log);
         setReportData(buildReportData(team, sync));
+        if (sync.activityEvents && sync.activityEvents.length > 0) {
+          setActivityEvents(sync.activityEvents);
+        }
       } else {
         setReportData(buildReportData(team, {
           sessionStart: '', heartbeatCount: 0, apps: {}, files: [], windows: [],
@@ -203,6 +230,7 @@ export default function ReportModal({ team, onClose }: ReportModalProps) {
     { key: 'risk', label: 'Risk', icon: '\u26A0' },
     { key: 'timeline', label: 'Timeline', icon: '\u23F1' },
     { key: 'apps', label: 'Apps', icon: '\u2699' },
+    { key: 'activityLog', label: 'Activity Log', icon: '\u{1F4CB}' },
   ];
 
   return (
@@ -461,6 +489,48 @@ export default function ReportModal({ team, onClose }: ReportModalProps) {
                       })}
                     </tbody>
                   </table>
+                </div>
+              )}
+
+              {/* Activity Log Tab */}
+              {activeTab === 'activityLog' && (
+                <div className="activity-log-section">
+                  <div className="activity-log-description">
+                    User activity tracked in the background — online/offline status changes, app switching, and clipboard events with timestamps.
+                  </div>
+                  <div className="activity-log-actions">
+                    <span className="activity-log-count">{activityEvents.length} events recorded</span>
+                  </div>
+                  {activityEvents.length > 0 ? (
+                    <div className="activity-log-preview">
+                      <div className="activity-log-table">
+                        <div className="activity-log-header">
+                          <span>Time</span>
+                          <span>Event</span>
+                          <span>Details</span>
+                        </div>
+                        {[...activityEvents].reverse().map((event, idx) => (
+                          <div className="activity-log-row" key={idx}>
+                            <span className="activity-log-time">
+                              {new Date(event.timestamp).toLocaleTimeString()}
+                            </span>
+                            <span className={`activity-log-type activity-log-type--${event.type}`}>
+                              {formatEventType(event.type, event.details)}
+                            </span>
+                            <span className="activity-log-details" title={event.details || ''}>
+                              {event.details
+                                ? event.details.length > 60
+                                  ? event.details.substring(0, 60) + '\u2026'
+                                  : event.details
+                                : '\u2014'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="modal-empty">No activity events synced for this user.</div>
+                  )}
                 </div>
               )}
             </div>

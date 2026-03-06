@@ -49,6 +49,7 @@ export interface ActivitySyncData {
   lastStatus: 'online' | 'offline';
   lastStatusAt: string;
   offlinePeriods: Array<{ from: string; to: string; duration: number }>;
+  activityEvents?: Array<{ type: string; timestamp: string; details?: string }>;
 }
 
 export interface StatusEntry {
@@ -102,6 +103,7 @@ export interface HeartbeatPayload {
   status: 'online' | 'offline';
   timestamp: string;
   appName?: string;
+  activityEvents?: Array<{ type: string; timestamp: string; details?: string }>;
 }
 
 export interface SearchResult {
