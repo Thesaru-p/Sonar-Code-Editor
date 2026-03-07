@@ -290,8 +290,9 @@ export function CollaborationProvider({
         await window.electronAPI.collaboration.startHost(userName);
 
       if (newStatus.hostIp) {
-        // Initialize Yjs with local IP (host connects to itself)
-        initializeYjs(newStatus.hostIp, newStatus.port);
+        // Host connects to localhost since the server is on their own machine
+        // Using 127.0.0.1 ensures reliable local connection
+        initializeYjs("127.0.0.1", newStatus.port);
       }
 
       setStatus(newStatus);

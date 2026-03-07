@@ -25,6 +25,8 @@ export interface CollaborationStatus {
 interface Room {
   name: string;
   clients: Set<WebSocket>;
+  // Store last awareness message from each client to replay for new connections
+  awarenessStates: Map<WebSocket, Buffer>;
 }
 
 class CollaborationManager {
@@ -149,31 +151,61 @@ class CollaborationManager {
           
           // Get or create room
           if (!this.rooms.has(roomName)) {
-            this.rooms.set(roomName, { name: roomName, clients: new Set() });
+            this.rooms.set(roomName, { name: roomName, clients: new Set(), awarenessStates: new Map() });
           }
           const room = this.rooms.get(roomName)!;
           room.clients.add(ws);
           this.clientRooms.set(ws, roomName);
           
           console.log(`Room ${roomName} now has ${room.clients.size} client(s)`);
+          
+          // Send all existing awareness states to the new client
+          // This ensures new joiners see all currently connected users
+          room.awarenessStates.forEach((awarenessData, clientWs) => {
+            if (clientWs !== ws && ws.readyState === WebSocket.OPEN) {
+              console.log(`Sending existing awareness to new client (${awarenessData.length} bytes)`);
+              ws.send(awarenessData, { binary: true });
+            }
+          });
 
-          // Handle messages - just broadcast to all other clients in the same room
+          // Handle messages - broadcast to all other clients in the same room
           // y-websocket handles all the sync protocol in binary format
           ws.on('message', (data: Buffer | ArrayBuffer | Buffer[], isBinary: boolean) => {
             const room = this.rooms.get(this.clientRooms.get(ws) || '');
             if (!room) return;
             
+            // Convert to Buffer for consistent handling
+            const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
+            
+            // Debug: log message type (first byte indicates message type in y-websocket)
+            if (isBinary && buffer.length > 0) {
+              const msgType = buffer[0];
+              // 0 = sync step 1, 1 = sync step 2, 2 = update, 3 = awareness query, 4 = awareness update
+              const typeNames = ['sync1', 'sync2', 'update', 'awareness-query', 'awareness'];
+              console.log(`Broadcasting ${typeNames[msgType] || `type${msgType}`} (${buffer.length} bytes) to ${room.clients.size - 1} other client(s)`);
+              
+              // Store awareness messages for replay to future clients
+              if (msgType === 4) { // awareness update
+                room.awarenessStates.set(ws, buffer);
+              }
+            }
+            
             // Broadcast to all other clients in the room
+            let sentCount = 0;
             room.clients.forEach((client) => {
               if (client !== ws && client.readyState === WebSocket.OPEN) {
-                // Send as binary if it was binary, otherwise as string
                 if (isBinary) {
-                  client.send(data, { binary: true });
+                  client.send(buffer, { binary: true });
                 } else {
                   client.send(data);
                 }
+                sentCount++;
               }
             });
+            
+            if (sentCount === 0 && room.clients.size > 1) {
+              console.log('Warning: No clients to send to despite multiple clients in room');
+            }
           });
 
           ws.on('close', () => {
@@ -183,6 +215,7 @@ class CollaborationManager {
               const room = this.rooms.get(roomName);
               if (room) {
                 room.clients.delete(ws);
+                room.awarenessStates.delete(ws); // Clean up stored awareness
                 console.log(`Room ${roomName} now has ${room.clients.size} client(s)`);
                 if (room.clients.size === 0) {
                   this.rooms.delete(roomName);
