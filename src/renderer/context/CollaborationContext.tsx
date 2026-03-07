@@ -77,7 +77,9 @@ export function CollaborationProvider({
   const [userName, setUserName] = useState(() => {
     return localStorage.getItem("collaborationUserName") || "";
   });
-  const [activeSharedFile, setActiveSharedFileState] = useState<string | null>(null);
+  const [activeSharedFile, setActiveSharedFileState] = useState<string | null>(
+    null,
+  );
 
   // Refs to store Yjs instances (persist across renders)
   const ydocRef = useRef<Y.Doc | null>(null);
@@ -85,10 +87,14 @@ export function CollaborationProvider({
   const bindingRef = useRef<MonacoBinding | null>(null);
   const currentFileRef = useRef<string | null>(null);
   const userColorRef = useRef<string>(generateUserColor());
-  
+
   // Shared file callbacks
-  const sharedFilesCallbacksRef = useRef<Set<(files: SharedFile[]) => void>>(new Set());
-  const activeFileCallbacksRef = useRef<Set<(path: string | null) => void>>(new Set());
+  const sharedFilesCallbacksRef = useRef<Set<(files: SharedFile[]) => void>>(
+    new Set(),
+  );
+  const activeFileCallbacksRef = useRef<Set<(path: string | null) => void>>(
+    new Set(),
+  );
 
   // Save username to localStorage when it changes
   useEffect(() => {
@@ -174,20 +180,23 @@ export function CollaborationProvider({
       // Initialize shared files map and observe changes
       const sharedFilesMap = ydoc.getMap<SharedFile>("sharedFiles");
       const activeFileText = ydoc.getText("activeFile");
-      
+
       // Observe shared files changes
       sharedFilesMap.observe(() => {
         const files = Array.from(sharedFilesMap.values());
-        console.log("Shared files updated:", files.map(f => f.name).join(", "));
-        sharedFilesCallbacksRef.current.forEach(cb => cb(files));
+        console.log(
+          "Shared files updated:",
+          files.map((f) => f.name).join(", "),
+        );
+        sharedFilesCallbacksRef.current.forEach((cb) => cb(files));
       });
-      
+
       // Observe active file changes
       activeFileText.observe(() => {
         const path = activeFileText.toString() || null;
         console.log("Active shared file:", path);
         setActiveSharedFileState(path);
-        activeFileCallbacksRef.current.forEach(cb => cb(path));
+        activeFileCallbacksRef.current.forEach((cb) => cb(path));
       });
 
       // Helper to update user list from awareness states
@@ -226,14 +235,17 @@ export function CollaborationProvider({
           // Notify about existing shared files after sync
           const files = Array.from(sharedFilesMap.values());
           if (files.length > 0) {
-            console.log("Synced shared files:", files.map(f => f.name).join(", "));
-            sharedFilesCallbacksRef.current.forEach(cb => cb(files));
+            console.log(
+              "Synced shared files:",
+              files.map((f) => f.name).join(", "),
+            );
+            sharedFilesCallbacksRef.current.forEach((cb) => cb(files));
           }
           // Notify about active file
           const activePath = activeFileText.toString() || null;
           if (activePath) {
             setActiveSharedFileState(activePath);
-            activeFileCallbacksRef.current.forEach(cb => cb(activePath));
+            activeFileCallbacksRef.current.forEach((cb) => cb(activePath));
           }
         }
       });
@@ -403,31 +415,37 @@ export function CollaborationProvider({
   }, []);
 
   // Subscribe to shared files changes
-  const onSharedFilesChange = useCallback((callback: (files: SharedFile[]) => void) => {
-    sharedFilesCallbacksRef.current.add(callback);
-    // Immediately call with current files if available
-    if (ydocRef.current) {
-      const files = getSharedFiles();
-      if (files.length > 0) {
-        callback(files);
+  const onSharedFilesChange = useCallback(
+    (callback: (files: SharedFile[]) => void) => {
+      sharedFilesCallbacksRef.current.add(callback);
+      // Immediately call with current files if available
+      if (ydocRef.current) {
+        const files = getSharedFiles();
+        if (files.length > 0) {
+          callback(files);
+        }
       }
-    }
-    return () => {
-      sharedFilesCallbacksRef.current.delete(callback);
-    };
-  }, [getSharedFiles]);
+      return () => {
+        sharedFilesCallbacksRef.current.delete(callback);
+      };
+    },
+    [getSharedFiles],
+  );
 
   // Subscribe to active file changes
-  const onActiveFileChange = useCallback((callback: (path: string | null) => void) => {
-    activeFileCallbacksRef.current.add(callback);
-    // Immediately call with current active file if available
-    if (activeSharedFile) {
-      callback(activeSharedFile);
-    }
-    return () => {
-      activeFileCallbacksRef.current.delete(callback);
-    };
-  }, [activeSharedFile]);
+  const onActiveFileChange = useCallback(
+    (callback: (path: string | null) => void) => {
+      activeFileCallbacksRef.current.add(callback);
+      // Immediately call with current active file if available
+      if (activeSharedFile) {
+        callback(activeSharedFile);
+      }
+      return () => {
+        activeFileCallbacksRef.current.delete(callback);
+      };
+    },
+    [activeSharedFile],
+  );
 
   const value: CollaborationContextValue = {
     isActive: status?.isActive || false,
