@@ -131,6 +131,20 @@ export default function CollaborationPanel({
   const isActive = collaborationStatus?.isActive || false;
   const connectedUsers = collaborationStatus?.connectedUsers || [];
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      if (activeTab === "join") {
+        if (!loading && userName.trim() && hostIp.trim()) {
+          handleJoinSession();
+        }
+      } else {
+        if (!loading && userName.trim()) {
+          handleStartHost();
+        }
+      }
+    }
+  };
+
   return (
     <div className="collaboration-panel">
       <div className="collaboration-header">
@@ -178,6 +192,7 @@ export default function CollaborationPanel({
                 type="text"
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder="Enter your name"
                 maxLength={20}
               />
@@ -196,6 +211,7 @@ export default function CollaborationPanel({
                     type="text"
                     value={hostIp}
                     onChange={(e) => setHostIp(e.target.value)}
+                    onKeyDown={handleKeyDown}
                     placeholder="e.g., 192.168.1.100"
                   />
                 </div>

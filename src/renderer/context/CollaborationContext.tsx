@@ -131,6 +131,10 @@ export function CollaborationProvider({
   const currentFileRef = useRef<string | null>(null);
   const currentEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const settingsListenersRef = useRef<{
+    storage: ((e: StorageEvent) => void) | null;
+    custom: (() => void) | null;
+  }>({ storage: null, custom: null });
   const userColorRef = useRef<string>(generateUserColor());
 
   // Shared file callbacks
@@ -215,6 +219,21 @@ export function CollaborationProvider({
     if (styleEl) {
       styleEl.remove();
     }
+
+    // Clean up settings listeners
+    if (settingsListenersRef.current.storage) {
+      window.removeEventListener(
+        "storage",
+        settingsListenersRef.current.storage,
+      );
+    }
+    if (settingsListenersRef.current.custom) {
+      window.removeEventListener(
+        "collab-settings-changed",
+        settingsListenersRef.current.custom,
+      );
+    }
+    settingsListenersRef.current = { storage: null, custom: null };
 
     currentFileRef.current = null;
     currentEditorRef.current = null;
@@ -331,6 +350,13 @@ export function CollaborationProvider({
           document.head.appendChild(styleEl);
         }
 
+        const showUsernames =
+          localStorage.getItem("ide-collab-usernames") !== "false";
+        const opacityPct = Number(
+          localStorage.getItem("ide-collab-username-opacity") ?? 80,
+        );
+        const opacity = opacityPct / 100;
+
         const localClientId = provider.awareness.clientID;
         const css = states
           .filter(
@@ -348,7 +374,7 @@ export function CollaborationProvider({
                 border-left-style: solid;
               }
               .yRemoteSelectionHead-${clientId}::after {
-                content: '${name.replace(/'/g, "\\'")}';
+                content: '${showUsernames ? name.replace(/'/g, "\\'") : " "}';
                 position: absolute;
                 top: -18px;
                 left: -2px;
@@ -356,17 +382,40 @@ export function CollaborationProvider({
                 color: white;
                 font-size: 11px;
                 font-weight: 500;
-                padding: 1px 6px;
+                padding: ${showUsernames ? "1px 6px" : "0"};
                 border-radius: 3px 3px 3px 0;
                 white-space: nowrap;
                 pointer-events: none;
                 z-index: 1000;
+                opacity: ${showUsernames ? opacity : 0};
               }
             `;
           })
           .join("\n");
 
         styleEl.textContent = css;
+      };
+
+      // Re-inject cursor styles when collaboration settings change
+      const handleStorageChange = (e: StorageEvent) => {
+        if (
+          e.key === "ide-collab-usernames" ||
+          e.key === "ide-collab-username-opacity"
+        ) {
+          updateUserList();
+        }
+      };
+      const handleCollabSettingsChanged = () => {
+        updateUserList();
+      };
+      window.addEventListener("storage", handleStorageChange);
+      window.addEventListener(
+        "collab-settings-changed",
+        handleCollabSettingsChanged,
+      );
+      settingsListenersRef.current = {
+        storage: handleStorageChange,
+        custom: handleCollabSettingsChanged,
       };
 
       // Listen for awareness changes (user list updates)

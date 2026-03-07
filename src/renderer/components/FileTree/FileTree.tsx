@@ -22,7 +22,7 @@ import { FileNode } from "../../../shared/types";
 import "./FileTree.css";
 
 const isWindows = navigator.userAgent.toLowerCase().includes("win");
-const INDENT_PX = isWindows ? 8 : 16;
+const INDENT_PX = isWindows ? 12 : 22;
 
 function getIcon(node: FileNode) {
   if (node.type === "directory")
@@ -275,22 +275,23 @@ function FileTreeNode({
 
   useEffect(() => {
     if (contextMenu) {
-      const handler = () => closeContextMenu();
-      window.addEventListener("click", handler, { capture: true });
-      window.addEventListener("contextmenu", handler, { capture: true });
-      window.addEventListener("blur", handler, { capture: true });
-      document.addEventListener(
-        "close-context-menus",
-        handler as EventListener,
-      );
+      const handler = (e: Event) => {
+        const el =
+          e.target instanceof HTMLElement
+            ? e.target
+            : (e.target as Node).parentElement;
+        if (el?.closest?.(".context-menu")) return;
+        closeContextMenu();
+      };
+      const blurHandler = () => closeContextMenu();
+      const closeHandler = () => closeContextMenu();
+      window.addEventListener("mousedown", handler);
+      window.addEventListener("blur", blurHandler);
+      document.addEventListener("close-context-menus", closeHandler);
       return () => {
-        window.removeEventListener("click", handler, { capture: true });
-        window.removeEventListener("contextmenu", handler, { capture: true });
-        window.removeEventListener("blur", handler, { capture: true });
-        document.removeEventListener(
-          "close-context-menus",
-          handler as EventListener,
-        );
+        window.removeEventListener("mousedown", handler);
+        window.removeEventListener("blur", blurHandler);
+        document.removeEventListener("close-context-menus", closeHandler);
       };
     }
   }, [contextMenu]);
@@ -498,22 +499,23 @@ export default function FileTree({
 
   useEffect(() => {
     if (contextMenu) {
-      const handler = () => setContextMenu(null);
-      window.addEventListener("click", handler, { capture: true });
-      window.addEventListener("contextmenu", handler, { capture: true });
-      window.addEventListener("blur", handler, { capture: true });
-      document.addEventListener(
-        "close-context-menus",
-        handler as EventListener,
-      );
+      const handler = (e: Event) => {
+        const el =
+          e.target instanceof HTMLElement
+            ? e.target
+            : (e.target as Node).parentElement;
+        if (el?.closest?.(".context-menu")) return;
+        setContextMenu(null);
+      };
+      const blurHandler = () => setContextMenu(null);
+      const closeHandler = () => setContextMenu(null);
+      window.addEventListener("mousedown", handler);
+      window.addEventListener("blur", blurHandler);
+      document.addEventListener("close-context-menus", closeHandler);
       return () => {
-        window.removeEventListener("click", handler, { capture: true });
-        window.removeEventListener("contextmenu", handler, { capture: true });
-        window.removeEventListener("blur", handler, { capture: true });
-        document.removeEventListener(
-          "close-context-menus",
-          handler as EventListener,
-        );
+        window.removeEventListener("mousedown", handler);
+        window.removeEventListener("blur", blurHandler);
+        document.removeEventListener("close-context-menus", closeHandler);
       };
     }
   }, [contextMenu]);
