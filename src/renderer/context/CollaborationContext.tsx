@@ -131,10 +131,7 @@ export function CollaborationProvider({
   const currentFileRef = useRef<string | null>(null);
   const currentEditorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const settingsListenersRef = useRef<{
-    storage: ((e: StorageEvent) => void) | null;
-    custom: (() => void) | null;
-  }>({ storage: null, custom: null });
+  const settingsListenersRef = useRef<{ storage: ((e: StorageEvent) => void) | null; custom: (() => void) | null }>({ storage: null, custom: null });
   const userColorRef = useRef<string>(generateUserColor());
 
   // Shared file callbacks
@@ -222,16 +219,10 @@ export function CollaborationProvider({
 
     // Clean up settings listeners
     if (settingsListenersRef.current.storage) {
-      window.removeEventListener(
-        "storage",
-        settingsListenersRef.current.storage,
-      );
+      window.removeEventListener("storage", settingsListenersRef.current.storage);
     }
     if (settingsListenersRef.current.custom) {
-      window.removeEventListener(
-        "collab-settings-changed",
-        settingsListenersRef.current.custom,
-      );
+      window.removeEventListener("collab-settings-changed", settingsListenersRef.current.custom);
     }
     settingsListenersRef.current = { storage: null, custom: null };
 
@@ -350,11 +341,8 @@ export function CollaborationProvider({
           document.head.appendChild(styleEl);
         }
 
-        const showUsernames =
-          localStorage.getItem("ide-collab-usernames") !== "false";
-        const opacityPct = Number(
-          localStorage.getItem("ide-collab-username-opacity") ?? 80,
-        );
+        const showUsernames = localStorage.getItem("ide-collab-usernames") !== "false";
+        const opacityPct = Number(localStorage.getItem("ide-collab-username-opacity") ?? 80);
         const opacity = opacityPct / 100;
 
         const localClientId = provider.awareness.clientID;
@@ -398,10 +386,7 @@ export function CollaborationProvider({
 
       // Re-inject cursor styles when collaboration settings change
       const handleStorageChange = (e: StorageEvent) => {
-        if (
-          e.key === "ide-collab-usernames" ||
-          e.key === "ide-collab-username-opacity"
-        ) {
+        if (e.key === "ide-collab-usernames" || e.key === "ide-collab-username-opacity") {
           updateUserList();
         }
       };
@@ -409,14 +394,8 @@ export function CollaborationProvider({
         updateUserList();
       };
       window.addEventListener("storage", handleStorageChange);
-      window.addEventListener(
-        "collab-settings-changed",
-        handleCollabSettingsChanged,
-      );
-      settingsListenersRef.current = {
-        storage: handleStorageChange,
-        custom: handleCollabSettingsChanged,
-      };
+      window.addEventListener("collab-settings-changed", handleCollabSettingsChanged);
+      settingsListenersRef.current = { storage: handleStorageChange, custom: handleCollabSettingsChanged };
 
       // Listen for awareness changes (user list updates)
       provider.awareness.on("change", updateUserList);

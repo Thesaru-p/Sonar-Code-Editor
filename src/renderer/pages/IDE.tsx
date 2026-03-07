@@ -104,8 +104,8 @@ function IDEContent() {
   const [showCollabUsernames, setShowCollabUsernames] = useState(
     () => localStorage.getItem("ide-collab-usernames") !== "false",
   );
-  const [collabUsernameOpacity, setCollabUsernameOpacity] = useState(() =>
-    Number(localStorage.getItem("ide-collab-username-opacity") ?? 80),
+  const [collabUsernameOpacity, setCollabUsernameOpacity] = useState(
+    () => Number(localStorage.getItem("ide-collab-username-opacity") ?? 80),
   );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCollaborationOpen, setIsCollaborationOpen] = useState(false);
@@ -158,10 +158,7 @@ function IDEContent() {
   }, [showCollabUsernames]);
 
   useEffect(() => {
-    localStorage.setItem(
-      "ide-collab-username-opacity",
-      String(collabUsernameOpacity),
-    );
+    localStorage.setItem("ide-collab-username-opacity", String(collabUsernameOpacity));
     window.dispatchEvent(new Event("collab-settings-changed"));
   }, [collabUsernameOpacity]);
 
@@ -440,9 +437,9 @@ function IDEContent() {
       // During collaboration, get content from editor model (not React state)
       // since React state isn't updated during collaborative editing
       const content = collaboration.isActive
-        ? (collaboration.getCurrentEditorContent() ?? activeTab.content)
+        ? collaboration.getCurrentEditorContent() ?? activeTab.content
         : activeTab.content;
-
+      
       await window.electronAPI.fs.writeFile(activeTab.path, content);
       setTabs((prev) =>
         prev.map((t) =>
