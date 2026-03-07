@@ -44,6 +44,10 @@ interface CollaborationContextValue {
   activeSharedFile: string | null;
   onSharedFilesChange: (callback: (files: SharedFile[]) => void) => () => void;
   onActiveFileChange: (callback: (path: string | null) => void) => () => void;
+  // Workspace sharing
+  sharedWorkspace: string | null;
+  setSharedWorkspace: (path: string) => void;
+  onWorkspaceChange: (callback: (path: string | null) => void) => () => void;
 }
 
 const CollaborationContext = createContext<CollaborationContextValue | null>(
@@ -80,6 +84,9 @@ export function CollaborationProvider({
   const [activeSharedFile, setActiveSharedFileState] = useState<string | null>(
     null,
   );
+  const [sharedWorkspace, setSharedWorkspaceState] = useState<string | null>(
+    null,
+  );
 
   // Refs to store Yjs instances (persist across renders)
   const ydocRef = useRef<Y.Doc | null>(null);
@@ -93,6 +100,9 @@ export function CollaborationProvider({
     new Set(),
   );
   const activeFileCallbacksRef = useRef<Set<(path: string | null) => void>>(
+    new Set(),
+  );
+  const workspaceCallbacksRef = useRef<Set<(path: string | null) => void>>(
     new Set(),
   );
 
@@ -180,6 +190,15 @@ export function CollaborationProvider({
       // Initialize shared files map and observe changes
       const sharedFilesMap = ydoc.getMap<SharedFile>("sharedFiles");
       const activeFileText = ydoc.getText("activeFile");
+      const workspaceText = ydoc.getText("sharedWorkspace");
+
+      // Observe workspace changes
+      workspaceText.observe(() => {
+        const path = workspaceText.toString() || null;
+        console.log("Shared workspace updated:", path);
+        setSharedWorkspaceState(path);
+        workspaceCallbacksRef.current.forEach((cb) => cb(path));
+      });
 
       // Observe shared files changes
       sharedFilesMap.observe(() => {
@@ -246,6 +265,12 @@ export function CollaborationProvider({
           if (activePath) {
             setActiveSharedFileState(activePath);
             activeFileCallbacksRef.current.forEach((cb) => cb(activePath));
+          }
+          // Notify about shared workspace
+          const workspacePath = workspaceText.toString() || null;
+          if (workspacePath) {
+            setSharedWorkspaceState(workspacePath);
+            workspaceCallbacksRef.current.forEach((cb) => cb(workspacePath));
           }
         }
       });
@@ -447,6 +472,35 @@ export function CollaborationProvider({
     [activeSharedFile],
   );
 
+  // Set the shared workspace (syncs to all users)
+  const setSharedWorkspace = useCallback((path: string) => {
+    if (!ydocRef.current) {
+      console.warn("Cannot set shared workspace: No Yjs document");
+      return;
+    }
+    const workspaceText = ydocRef.current.getText("sharedWorkspace");
+    ydocRef.current.transact(() => {
+      workspaceText.delete(0, workspaceText.length);
+      workspaceText.insert(0, path);
+    });
+    console.log("Set shared workspace:", path);
+  }, []);
+
+  // Subscribe to workspace changes
+  const onWorkspaceChange = useCallback(
+    (callback: (path: string | null) => void) => {
+      workspaceCallbacksRef.current.add(callback);
+      // Immediately call with current workspace if available
+      if (sharedWorkspace) {
+        callback(sharedWorkspace);
+      }
+      return () => {
+        workspaceCallbacksRef.current.delete(callback);
+      };
+    },
+    [sharedWorkspace],
+  );
+
   const value: CollaborationContextValue = {
     isActive: status?.isActive || false,
     status,
@@ -467,6 +521,10 @@ export function CollaborationProvider({
     activeSharedFile,
     onSharedFilesChange,
     onActiveFileChange,
+    // Workspace sharing
+    sharedWorkspace,
+    setSharedWorkspace,
+    onWorkspaceChange,
   };
 
   return (
