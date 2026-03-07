@@ -6,6 +6,7 @@ import {
   useCollaboration,
   WorkspaceFile,
   WorkspaceMetadata,
+  FileOperation,
 } from "../context/CollaborationContext";
 import FileTree from "../components/FileTree/FileTree";
 import EditorPanel from "../components/Editor/EditorPanel";
@@ -110,6 +111,7 @@ function IDEContent() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCollaborationOpen, setIsCollaborationOpen] = useState(false);
   const [newFileTrigger, setNewFileTrigger] = useState(0);
+  const [fileTreeRefreshKey, setFileTreeRefreshKey] = useState(0);
 
   useEffect(() => {
     // Add platform class to body for OS-specific styling
@@ -358,6 +360,74 @@ function IDEContent() {
     collaboration.shareWorkspaceWithFiles,
   ]);
 
+  // Listen for file operations from collaboration peers
+  useEffect(() => {
+    if (!collaboration.isActive || !workspaceRoot) return;
+
+    const unsubFileOp = collaboration.onFileOperation(
+      async (op: FileOperation) => {
+        const absPath = `${workspaceRoot}/${op.relativePath}`;
+        console.log("Applying remote file operation:", op.type, absPath);
+
+        try {
+          switch (op.type) {
+            case "create-file": {
+              // Ensure parent directory exists
+              const parentDir = absPath.substring(
+                0,
+                absPath.lastIndexOf("/"),
+              );
+              try {
+                await window.electronAPI.fs.createFolder(parentDir);
+              } catch {
+                // Parent might already exist
+              }
+              await window.electronAPI.fs.createFile(absPath);
+              if (op.content) {
+                await window.electronAPI.fs.writeFile(absPath, op.content);
+              }
+              break;
+            }
+            case "create-folder": {
+              await window.electronAPI.fs.createFolder(absPath);
+              break;
+            }
+            case "delete": {
+              await window.electronAPI.fs.deleteItem(absPath);
+              // Close any open tabs for the deleted path
+              handleFileDeleted(absPath, op.isDirectory ? "directory" : "file");
+              break;
+            }
+            case "rename": {
+              if (op.newRelativePath) {
+                const newAbsPath = `${workspaceRoot}/${op.newRelativePath}`;
+                await window.electronAPI.fs.renameItem(absPath, newAbsPath);
+                // Update any open tabs for the renamed path
+                handleFileRenamed(absPath, newAbsPath);
+              }
+              break;
+            }
+          }
+        } catch (err) {
+          console.error("Failed to apply remote file operation:", err);
+        }
+
+        // Trigger file tree refresh
+        setFileTreeRefreshKey((k) => k + 1);
+      },
+    );
+
+    return () => {
+      unsubFileOp();
+    };
+  }, [
+    collaboration.isActive,
+    collaboration.onFileOperation,
+    workspaceRoot,
+    handleFileDeleted,
+    handleFileRenamed,
+  ]);
+
   const toggleTheme = useCallback(() => {
     setTheme((prev) =>
       prev === "dark" ? "light" : prev === "light" ? "system" : "dark",
@@ -472,6 +542,22 @@ function IDEContent() {
 
   const handleFileDeleted = useCallback(
     (deletedPath: string, type: "file" | "directory") => {
+      // Broadcast to collaboration peers
+      if (collaboration.isActive && workspaceRoot) {
+        const normalizedDeleted = deletedPath.replace(/\\/g, "/");
+        const normalizedRoot = workspaceRoot.replace(/\\/g, "/");
+        if (normalizedDeleted.startsWith(normalizedRoot)) {
+          const relativePath = normalizedDeleted
+            .substring(normalizedRoot.length)
+            .replace(/^\//, "");
+          collaboration.broadcastFileOp({
+            type: "delete",
+            relativePath,
+            isDirectory: type === "directory",
+          });
+        }
+      }
+
       setTabs((prev) => {
         const next = prev.filter((t) => {
           if (type === "directory") {
@@ -494,10 +580,33 @@ function IDEContent() {
         return next;
       });
     },
-    [],
+    [collaboration.isActive, collaboration.broadcastFileOp, workspaceRoot],
   );
 
   const handleFileRenamed = useCallback((oldPath: string, newPath: string) => {
+    // Broadcast to collaboration peers
+    if (collaboration.isActive && workspaceRoot) {
+      const normalizedOld = oldPath.replace(/\\/g, "/");
+      const normalizedNew = newPath.replace(/\\/g, "/");
+      const normalizedRoot = workspaceRoot.replace(/\\/g, "/");
+      if (
+        normalizedOld.startsWith(normalizedRoot) &&
+        normalizedNew.startsWith(normalizedRoot)
+      ) {
+        const relOld = normalizedOld
+          .substring(normalizedRoot.length)
+          .replace(/^\//, "");
+        const relNew = normalizedNew
+          .substring(normalizedRoot.length)
+          .replace(/^\//, "");
+        collaboration.broadcastFileOp({
+          type: "rename",
+          relativePath: relOld,
+          newRelativePath: relNew,
+        });
+      }
+    }
+
     setTabs((prev) => {
       let updated = false;
       const next = prev.map((t) => {
@@ -530,7 +639,46 @@ function IDEContent() {
       }
       return next;
     });
-  }, []);
+  }, [collaboration.isActive, collaboration.broadcastFileOp, workspaceRoot]);
+
+  const handleFileCreated = useCallback(
+    (path: string, name: string) => {
+      if (collaboration.isActive && workspaceRoot) {
+        const normalizedPath = path.replace(/\\/g, "/");
+        const normalizedRoot = workspaceRoot.replace(/\\/g, "/");
+        if (normalizedPath.startsWith(normalizedRoot)) {
+          const relativePath = normalizedPath
+            .substring(normalizedRoot.length)
+            .replace(/^\//, "");
+          collaboration.broadcastFileOp({
+            type: "create-file",
+            relativePath,
+            content: "",
+          });
+        }
+      }
+    },
+    [collaboration.isActive, collaboration.broadcastFileOp, workspaceRoot],
+  );
+
+  const handleFolderCreated = useCallback(
+    (path: string) => {
+      if (collaboration.isActive && workspaceRoot) {
+        const normalizedPath = path.replace(/\\/g, "/");
+        const normalizedRoot = workspaceRoot.replace(/\\/g, "/");
+        if (normalizedPath.startsWith(normalizedRoot)) {
+          const relativePath = normalizedPath
+            .substring(normalizedRoot.length)
+            .replace(/^\//, "");
+          collaboration.broadcastFileOp({
+            type: "create-folder",
+            relativePath,
+          });
+        }
+      }
+    },
+    [collaboration.isActive, collaboration.broadcastFileOp, workspaceRoot],
+  );
 
   const openFolder = useCallback(async () => {
     const result = await window.electronAPI.fs.openFolderDialog();
@@ -654,6 +802,9 @@ function IDEContent() {
                   newFileTrigger={newFileTrigger}
                   onFileDeleted={handleFileDeleted}
                   onFileRenamed={handleFileRenamed}
+                  onFileCreated={handleFileCreated}
+                  onFolderCreated={handleFolderCreated}
+                  refreshTrigger={fileTreeRefreshKey}
                 />
               </Panel>
               <PanelResizeHandle className="resize-handle" />

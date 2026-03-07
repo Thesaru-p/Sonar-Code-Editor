@@ -34,6 +34,16 @@ export interface WorkspaceMetadata {
   files: WorkspaceFile[];
 }
 
+export interface FileOperation {
+  type: 'create-file' | 'create-folder' | 'delete' | 'rename';
+  relativePath: string;
+  newRelativePath?: string;
+  content?: string;
+  isDirectory?: boolean;
+  timestamp: number;
+  clientId: number;
+}
+
 interface CollaborationContextValue {
   isActive: boolean;
   status: CollaborationStatus | null;
@@ -69,6 +79,9 @@ interface CollaborationContextValue {
   onWorkspaceMetadataChange: (
     callback: (metadata: WorkspaceMetadata | null) => void,
   ) => () => void;
+  // File operation sync
+  broadcastFileOp: (op: Omit<FileOperation, 'timestamp' | 'clientId'>) => void;
+  onFileOperation: (callback: (op: FileOperation) => void) => () => void;
 }
 
 const CollaborationContext = createContext<CollaborationContextValue | null>(
@@ -133,6 +146,9 @@ export function CollaborationProvider({
   const workspaceMetadataCallbacksRef = useRef<
     Set<(metadata: WorkspaceMetadata | null) => void>
   >(new Set());
+  const fileOpCallbacksRef = useRef<Set<(op: FileOperation) => void>>(
+    new Set(),
+  );
 
   // Save username to localStorage when it changes
   useEffect(() => {
@@ -241,6 +257,23 @@ export function CollaborationProvider({
         console.log("Workspace metadata updated:", metadata?.folderName);
         setWorkspaceMetadataState(metadata);
         workspaceMetadataCallbacksRef.current.forEach((cb) => cb(metadata));
+      });
+
+      // File operation sync via Y.Array
+      const fileOpsArray = ydoc.getArray<FileOperation>("fileOps");
+      let fileOpsSynced = false;
+
+      fileOpsArray.observe((event) => {
+        if (!fileOpsSynced) return;
+        event.changes.delta.forEach((delta: any) => {
+          if (delta.insert) {
+            (delta.insert as FileOperation[]).forEach((op) => {
+              if (op.clientId === provider.awareness.clientID) return;
+              console.log("Received file operation:", op.type, op.relativePath);
+              fileOpCallbacksRef.current.forEach((cb) => cb(op));
+            });
+          }
+        });
       });
 
       // Observe workspace changes
@@ -362,6 +395,7 @@ export function CollaborationProvider({
       provider.on("sync", (isSynced: boolean) => {
         console.log("Yjs sync status:", isSynced);
         if (isSynced) {
+          fileOpsSynced = true;
           updateUserList();
           // Notify about existing shared files after sync
           const files = Array.from(sharedFilesMap.values());
@@ -669,6 +703,38 @@ export function CollaborationProvider({
     [sharedWorkspace],
   );
 
+  // Broadcast a file operation to all connected peers
+  const broadcastFileOp = useCallback(
+    (op: Omit<FileOperation, 'timestamp' | 'clientId'>) => {
+      if (!ydocRef.current || !providerRef.current) return;
+      const fileOpsArray =
+        ydocRef.current.getArray<FileOperation>("fileOps");
+      const fullOp: FileOperation = {
+        ...op,
+        timestamp: Date.now(),
+        clientId: providerRef.current.awareness.clientID,
+      };
+      fileOpsArray.push([fullOp]);
+      console.log(
+        "Broadcast file operation:",
+        fullOp.type,
+        fullOp.relativePath,
+      );
+    },
+    [],
+  );
+
+  // Subscribe to file operations from other peers
+  const onFileOperation = useCallback(
+    (callback: (op: FileOperation) => void) => {
+      fileOpCallbacksRef.current.add(callback);
+      return () => {
+        fileOpCallbacksRef.current.delete(callback);
+      };
+    },
+    [],
+  );
+
   // Share workspace with files (for syncing entire folder to clients)
   const shareWorkspaceWithFiles = useCallback(
     (path: string, files: WorkspaceFile[]) => {
@@ -736,6 +802,9 @@ export function CollaborationProvider({
     shareWorkspaceWithFiles,
     workspaceMetadata,
     onWorkspaceMetadataChange,
+    // File operation sync
+    broadcastFileOp,
+    onFileOperation,
   };
 
   return (

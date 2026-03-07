@@ -107,9 +107,11 @@ interface FileTreeNodeProps {
   onFileOpened: (path: string, name: string) => void;
   onFileDeleted: (path: string, type: 'file' | 'directory') => void;
   onFileRenamed?: (oldPath: string, newPath: string) => void;
+  onFileCreated?: (path: string, name: string) => void;
+  onFolderCreated?: (path: string) => void;
 }
 
-function FileTreeNode({ node, depth, hasFolders, activeFilePath, onFileClick, onRefresh, workspaceRoot, creatingItem, onSetCreating, selectedFolder, onSelectFolder, onFileOpened, onFileDeleted, onFileRenamed }: FileTreeNodeProps) {
+function FileTreeNode({ node, depth, hasFolders, activeFilePath, onFileClick, onRefresh, workspaceRoot, creatingItem, onSetCreating, selectedFolder, onSelectFolder, onFileOpened, onFileDeleted, onFileRenamed, onFileCreated, onFolderCreated }: FileTreeNodeProps) {
   const [expanded, setExpanded] = useState(false);
   const [children, setChildren] = useState<FileNode[]>(node.children || []);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -169,11 +171,13 @@ function FileTreeNode({ node, depth, hasFolders, activeFilePath, onFileClick, on
       await window.electronAPI.fs.createFile(fullPath);
       onSetCreating(null);
       await loadChildren();
+      onFileCreated?.(fullPath, name);
       onFileOpened(fullPath, name);
     } else {
       await window.electronAPI.fs.createFolder(fullPath);
       onSetCreating(null);
       await loadChildren();
+      onFolderCreated?.(fullPath);
     }
   };
 
@@ -314,6 +318,8 @@ function FileTreeNode({ node, depth, hasFolders, activeFilePath, onFileClick, on
               onFileOpened={onFileOpened}
               onFileDeleted={onFileDeleted}
               onFileRenamed={onFileRenamed}
+              onFileCreated={onFileCreated}
+              onFolderCreated={onFolderCreated}
             />
           ))}
           {isCreatingHere && creatingItem?.type === 'file' && (
@@ -342,6 +348,8 @@ function FileTreeNode({ node, depth, hasFolders, activeFilePath, onFileClick, on
               onFileOpened={onFileOpened}
               onFileDeleted={onFileDeleted}
               onFileRenamed={onFileRenamed}
+              onFileCreated={onFileCreated}
+              onFolderCreated={onFolderCreated}
             />
           ))}
         </div>
@@ -361,9 +369,12 @@ interface FileTreeProps {
   newFileTrigger?: number;
   onFileDeleted?: (path: string, type: 'file' | 'directory') => void;
   onFileRenamed?: (oldPath: string, newPath: string) => void;
+  onFileCreated?: (path: string, name: string) => void;
+  onFolderCreated?: (path: string) => void;
+  refreshTrigger?: number;
 }
 
-export default function FileTree({ workspaceRoot, onOpenFolder, onFileClick, activeFilePath, autoSave, onAutoSaveChange, onFileOpened, newFileTrigger, onFileDeleted, onFileRenamed }: FileTreeProps) {
+export default function FileTree({ workspaceRoot, onOpenFolder, onFileClick, activeFilePath, autoSave, onAutoSaveChange, onFileOpened, newFileTrigger, onFileDeleted, onFileRenamed, onFileCreated, onFolderCreated, refreshTrigger }: FileTreeProps) {
   const [rootNodes, setRootNodes] = useState<FileNode[]>([]);
   const [creatingItem, setCreatingItem] = useState<CreatingItem | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(workspaceRoot);
@@ -411,6 +422,10 @@ export default function FileTree({ workspaceRoot, onOpenFolder, onFileClick, act
   useEffect(() => {
     loadRoot();
   }, [loadRoot]);
+
+  useEffect(() => {
+    if (refreshTrigger) loadRoot();
+  }, [refreshTrigger, loadRoot]);
 
   const handleSetCreating = (item: CreatingItem | null) => {
     setCreatingItem(item);
@@ -495,11 +510,13 @@ export default function FileTree({ workspaceRoot, onOpenFolder, onFileClick, act
                 await window.electronAPI.fs.createFile(fullPath);
                 setCreatingItem(null);
                 loadRoot();
+                onFileCreated?.(fullPath, name);
                 onFileOpened?.(fullPath, name);
               } else {
                 await window.electronAPI.fs.createFolder(fullPath);
                 setCreatingItem(null);
                 loadRoot();
+                onFolderCreated?.(fullPath);
               }
             }}
             onCancel={() => setCreatingItem(null)}
@@ -522,6 +539,8 @@ export default function FileTree({ workspaceRoot, onOpenFolder, onFileClick, act
             onFileOpened={onFileOpened ?? (() => {})}
             onFileDeleted={onFileDeleted ?? (() => {})}
             onFileRenamed={onFileRenamed}
+            onFileCreated={onFileCreated}
+            onFolderCreated={onFolderCreated}
           />
         ))}
         {creatingItem && creatingItem.parentPath === workspaceRoot && creatingItem.type === 'file' && (
@@ -535,11 +554,13 @@ export default function FileTree({ workspaceRoot, onOpenFolder, onFileClick, act
                 await window.electronAPI.fs.createFile(fullPath);
                 setCreatingItem(null);
                 loadRoot();
+                onFileCreated?.(fullPath, name);
                 onFileOpened?.(fullPath, name);
               } else {
                 await window.electronAPI.fs.createFolder(fullPath);
                 setCreatingItem(null);
                 loadRoot();
+                onFolderCreated?.(fullPath);
               }
             }}
             onCancel={() => setCreatingItem(null)}
@@ -562,6 +583,8 @@ export default function FileTree({ workspaceRoot, onOpenFolder, onFileClick, act
             onFileOpened={onFileOpened ?? (() => {})}
             onFileDeleted={onFileDeleted ?? (() => {})}
             onFileRenamed={onFileRenamed}
+            onFileCreated={onFileCreated}
+            onFolderCreated={onFolderCreated}
           />
         ))}
       </div>

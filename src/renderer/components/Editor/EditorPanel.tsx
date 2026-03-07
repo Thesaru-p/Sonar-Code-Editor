@@ -488,9 +488,13 @@ export default function EditorPanel({
                 options={getEditorOptions(wordWrap)}
                 onMount={isActive ? handleEditorMount : undefined}
                 onChange={(value) => {
-                  // Skip React state updates during collaboration - y-monaco handles content sync
-                  if (value !== undefined && !collaborationActive) {
-                    onContentChange(tab.path, value);
+                  if (value !== undefined) {
+                    if (!collaborationActive) {
+                      onContentChange(tab.path, value);
+                    } else if (tab.isPreviewFile) {
+                      // Pin the tab when editing in collaboration mode
+                      onTabDoubleClick?.(tab.path);
+                    }
                   }
                 }}
                 path={tab.path}
