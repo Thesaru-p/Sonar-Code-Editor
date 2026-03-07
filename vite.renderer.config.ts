@@ -12,9 +12,20 @@ export default defineConfig({
       '@renderer': resolve(__dirname, 'src/renderer'),
     },
   },
+  optimizeDeps: {
+    include: ['yjs', 'y-websocket', 'y-monaco', 'monaco-editor'],
+  },
   build: {
     outDir: resolve(__dirname, 'dist/renderer'),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'monaco-editor': ['monaco-editor'],
+          'yjs': ['yjs', 'y-websocket', 'y-monaco'],
+        },
+      },
+    },
   },
   server: {
     port: 5173,

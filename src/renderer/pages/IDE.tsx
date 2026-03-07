@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import { useAuth } from "../context/AuthContext";
+import { CollaborationProvider, useCollaboration } from "../context/CollaborationContext";
 import FileTree from "../components/FileTree/FileTree";
 import EditorPanel from "../components/Editor/EditorPanel";
 import PreviewPanel from "../components/Preview/PreviewPanel";
 import ActivityBar from "../components/Sidebar/ActivityBar";
 import SettingsModal from "../components/Settings/SettingsModal";
+import CollaborationModal from "../components/Collaboration/CollaborationModal";
 import { useMonitoring } from "../hooks/useMonitoring";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
 import { useActivityLogger } from "../hooks/useActivityLogger";
@@ -66,8 +68,17 @@ function getLanguage(filename: string): string {
 }
 
 export default function IDE() {
+  return (
+    <CollaborationProvider>
+      <IDEContent />
+    </CollaborationProvider>
+  );
+}
+
+function IDEContent() {
   const { user, logout } = useAuth();
   const isOnline = useNetworkStatus();
+  const collaboration = useCollaboration();
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [activeTabPath, setActiveTabPath] = useState<string | null>(null);
@@ -83,6 +94,7 @@ export default function IDE() {
     () => localStorage.getItem("ide-hotreload") !== "false",
   );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isCollaborationOpen, setIsCollaborationOpen] = useState(false);
   const [newFileTrigger, setNewFileTrigger] = useState(0);
 
   useEffect(() => {
@@ -420,6 +432,8 @@ export default function IDE() {
         theme={theme}
         onToggleTheme={toggleTheme}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        isCollaborating={collaboration.isActive}
+        onToggleCollaboration={() => setIsCollaborationOpen(true)}
       />
       <div className="ide-body">
         <PanelGroup direction="horizontal" autoSaveId="ide-layout">
@@ -475,6 +489,9 @@ export default function IDE() {
               theme={theme}
               activeFilePath={activeTabPath}
               previewInitialUrl={previewInitialUrl}
+              collaborationActive={collaboration.isActive}
+              onEditorMount={collaboration.bindEditor}
+              onEditorUnmount={collaboration.unbindEditor}
             />
           </Panel>
           {showPreview && (
@@ -505,6 +522,10 @@ export default function IDE() {
         teamName={user?.teamName || ''}
         user={user}
         onLogout={logout}
+      />
+      <CollaborationModal
+        isOpen={isCollaborationOpen}
+        onClose={() => setIsCollaborationOpen(false)}
       />
     </div>
   );

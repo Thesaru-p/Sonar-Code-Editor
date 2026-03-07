@@ -35,6 +35,15 @@ export const IPC_CHANNELS = {
   SYSTEM_OPEN_PREFS: 'system:openPrivacyPrefs',
   // Clipboard
   CLIPBOARD_READ_TEXT: 'clipboard:readText',
+  // Collaboration (P2P)
+  COLLAB_START_HOST: 'collaboration:startHost',
+  COLLAB_JOIN_SESSION: 'collaboration:joinSession',
+  COLLAB_STOP_SESSION: 'collaboration:stopSession',
+  COLLAB_GET_STATUS: 'collaboration:getStatus',
+  COLLAB_GET_LOCAL_IP: 'collaboration:getLocalIp',
+  COLLAB_GET_NETWORK_INTERFACES: 'collaboration:getNetworkInterfaces',
+  COLLAB_START_HOSTED_NETWORK: 'collaboration:startHostedNetwork',
+  COLLAB_STATUS_CHANGE: 'collaboration:statusChange',
 } as const;
 
 export const APP_CONFIG = {

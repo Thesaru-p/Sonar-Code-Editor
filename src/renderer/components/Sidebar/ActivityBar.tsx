@@ -8,6 +8,7 @@ import {
   Monitor,
   Check,
   Chrome,
+  Users,
 } from "lucide-react";
 import "./ActivityBar.css";
 
@@ -29,6 +30,10 @@ interface ActivityBarProps {
   theme?: string;
   onToggleTheme?: () => void;
   onOpenSettings?: () => void;
+  
+  // Collaboration
+  isCollaborating?: boolean;
+  onToggleCollaboration?: () => void;
 }
 
 export default function ActivityBar({
@@ -45,6 +50,8 @@ export default function ActivityBar({
   theme = "dark",
   onToggleTheme = () => {},
   onOpenSettings = () => {},
+  isCollaborating = false,
+  onToggleCollaboration = () => {},
 }: ActivityBarProps) {
   const [showPreviewMenu, setShowPreviewMenu] = useState(false);
   const previewMenuRef = useRef<HTMLDivElement>(null);
@@ -122,6 +129,15 @@ export default function ActivityBar({
             </div>
           )}
         </div>
+
+        <button
+          className={`activity-action ${isCollaborating ? "active collaborating" : ""}`}
+          onClick={onToggleCollaboration}
+          title="Collaboration (P2P)"
+        >
+          <Users size={22} strokeWidth={1.5} />
+          {isCollaborating && <span className="collab-indicator" />}
+        </button>
       </div>
 
       <div className="activity-bottom">

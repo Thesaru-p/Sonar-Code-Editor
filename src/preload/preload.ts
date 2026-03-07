@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../shared/constants';
-import { ElectronAPI } from '../shared/types';
+import { ElectronAPI, CollaborationStatus } from '../shared/types';
 
 const api: ElectronAPI = {
   fs: {
@@ -53,6 +53,20 @@ const api: ElectronAPI = {
   },
   clipboard: {
     readText: () => ipcRenderer.invoke(IPC_CHANNELS.CLIPBOARD_READ_TEXT),
+  },
+  collaboration: {
+    startHost: (userName: string) => ipcRenderer.invoke(IPC_CHANNELS.COLLAB_START_HOST, userName),
+    joinSession: (hostIp: string, userName: string) => ipcRenderer.invoke(IPC_CHANNELS.COLLAB_JOIN_SESSION, hostIp, userName),
+    stopSession: () => ipcRenderer.invoke(IPC_CHANNELS.COLLAB_STOP_SESSION),
+    getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.COLLAB_GET_STATUS),
+    getLocalIp: () => ipcRenderer.invoke(IPC_CHANNELS.COLLAB_GET_LOCAL_IP),
+    getNetworkInterfaces: () => ipcRenderer.invoke(IPC_CHANNELS.COLLAB_GET_NETWORK_INTERFACES),
+    startHostedNetwork: (ssid: string, password: string) => ipcRenderer.invoke(IPC_CHANNELS.COLLAB_START_HOSTED_NETWORK, ssid, password),
+    onStatusChange: (callback: (status: CollaborationStatus) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, status: CollaborationStatus) => callback(status);
+      ipcRenderer.on(IPC_CHANNELS.COLLAB_STATUS_CHANGE, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.COLLAB_STATUS_CHANGE, handler);
+    },
   },
 };
 

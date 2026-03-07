@@ -159,4 +159,30 @@ export interface ElectronAPI {
   clipboard: {
     readText: () => Promise<string>;
   };
+  collaboration: {
+    startHost: (userName: string) => Promise<CollaborationStatus>;
+    joinSession: (hostIp: string, userName: string) => Promise<CollaborationStatus>;
+    stopSession: () => Promise<void>;
+    getStatus: () => Promise<CollaborationStatus>;
+    getLocalIp: () => Promise<string>;
+    getNetworkInterfaces: () => Promise<{ name: string; ip: string }[]>;
+    startHostedNetwork: (ssid: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    onStatusChange: (callback: (status: CollaborationStatus) => void) => () => void;
+  };
+}
+
+// Collaboration Types
+export interface CollaborationUser {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface CollaborationStatus {
+  isActive: boolean;
+  mode: 'host' | 'client' | null;
+  hostIp: string | null;
+  port: number;
+  connectedUsers: CollaborationUser[];
+  networkName?: string;
 }

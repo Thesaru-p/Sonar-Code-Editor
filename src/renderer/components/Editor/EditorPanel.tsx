@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import MonacoEditor, { type OnMount } from "@monaco-editor/react";
 import { Radar,
   FileCode2,
@@ -16,6 +16,7 @@ import { Radar,
   Braces,
   Palette,
 } from "lucide-react";
+import type { editor } from 'monaco-editor';
 import { OpenTab } from "../../pages/IDE";
 import PreviewPanel from "../Preview/PreviewPanel";
 import "./EditorPanel.css";
@@ -34,6 +35,10 @@ interface EditorPanelProps {
   theme?: string;
   activeFilePath?: string | null;
   previewInitialUrl?: string | null;
+  // Collaboration props
+  collaborationActive?: boolean;
+  onEditorMount?: (editor: editor.IStandaloneCodeEditor, filePath: string) => void;
+  onEditorUnmount?: () => void;
 }
 
 const EDITOR_OPTIONS = {
@@ -119,14 +124,52 @@ export default function EditorPanel({
   theme = "dark",
   activeFilePath,
   previewInitialUrl,
+  collaborationActive = false,
+  onEditorMount,
+  onEditorUnmount,
 }: EditorPanelProps) {
   const activeTab = tabs.find((t) => t.path === activeTabPath);
-  const editorRef = useRef<any>(null);
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const boundFileRef = useRef<string | null>(null);
+
+  // Bind editor to collaboration when collaboration becomes active or file changes
+  useEffect(() => {
+    if (collaborationActive && editorRef.current && activeTabPath && activeTabPath !== '__preview__') {
+      // Only bind if the file has changed or wasn't bound before  
+      if (boundFileRef.current !== activeTabPath) {
+        onEditorMount?.(editorRef.current, activeTabPath);
+        boundFileRef.current = activeTabPath;
+      }
+    }
+  }, [collaborationActive, activeTabPath, onEditorMount]);
+
+  // Unbind when collaboration ends
+  useEffect(() => {
+    if (!collaborationActive && boundFileRef.current) {
+      onEditorUnmount?.();
+      boundFileRef.current = null;
+    }
+  }, [collaborationActive, onEditorUnmount]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (boundFileRef.current) {
+        onEditorUnmount?.();
+      }
+    };
+  }, [onEditorUnmount]);
 
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
+
+    // Bind to collaboration if active
+    if (collaborationActive && activeTabPath && activeTabPath !== '__preview__') {
+      onEditorMount?.(editor, activeTabPath);
+      boundFileRef.current = activeTabPath;
+    }
 
     // Enable auto-closing HTML tags via linked editing
     monaco.languages.html?.htmlDefaults?.setOptions?.({
