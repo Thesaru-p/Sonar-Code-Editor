@@ -146,8 +146,12 @@ export default function EditorPanel({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const boundFileRef = useRef<string | null>(null);
   const modelChangeDisposerRef = useRef<{ dispose: () => void } | null>(null);
+  // Counter incremented when the Monaco editor mounts, so the binding
+  // useEffect re-evaluates even though editorRef is not reactive.
+  const [editorMountTick, setEditorMountTick] = useState(0);
 
-  // Bind editor to collaboration when collaboration becomes active or file changes
+  // Single binding path: bind editor to collaboration when the editor is
+  // ready, collaboration becomes active, or the active file changes.
   useEffect(() => {
     if (
       collaborationActive &&
@@ -157,7 +161,7 @@ export default function EditorPanel({
     ) {
       // Only bind if the file has changed or wasn't bound before
       if (boundFileRef.current !== activeTabPath) {
-        // Wait for model to be ready with a small delay
+        // Wait for the model to be ready with a small delay
         const timeoutId = setTimeout(() => {
           const model = editorRef.current?.getModel();
           if (model && model.getValue().length >= 0) {
@@ -173,7 +177,7 @@ export default function EditorPanel({
         return () => clearTimeout(timeoutId);
       }
     }
-  }, [collaborationActive, activeTabPath, onEditorMount]);
+  }, [collaborationActive, activeTabPath, onEditorMount, editorMountTick]);
 
   // Unbind when collaboration ends
   useEffect(() => {
@@ -198,20 +202,8 @@ export default function EditorPanel({
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
 
-    // Bind to collaboration if active (with slight delay for model to be ready)
-    if (
-      collaborationActive &&
-      activeTabPath &&
-      activeTabPath !== "__preview__"
-    ) {
-      setTimeout(() => {
-        if (boundFileRef.current !== activeTabPath) {
-          console.log(`Initial binding for file: ${activeTabPath}`);
-          onEditorMount?.(editor, activeTabPath, workspaceRoot || undefined);
-          boundFileRef.current = activeTabPath;
-        }
-      }, 50);
-    }
+    // Trigger re-evaluation of the binding effect now that the editor is ready
+    setEditorMountTick((c) => c + 1);
 
     // Enable auto-closing HTML tags via linked editing
     monaco.languages.html?.htmlDefaults?.setOptions?.({

@@ -134,6 +134,22 @@ export function CollaborationProvider({
   const settingsListenersRef = useRef<{ storage: ((e: StorageEvent) => void) | null; custom: (() => void) | null }>({ storage: null, custom: null });
   const userColorRef = useRef<string>(generateUserColor());
 
+  // Safe destroy helper — y-monaco's MonacoBinding.destroy() is not idempotent.
+  // It also registers an internal monacoModel.onWillDispose callback that can
+  // call destroy() before our code does, leading to a double-destroy where
+  // doc.off('beforeAllTransactions', …) fails because the observer was already
+  // removed.  Wrapping every destroy() call prevents the console error.
+  const safeDestroyBinding = useCallback(() => {
+    if (bindingRef.current) {
+      try {
+        bindingRef.current.destroy();
+      } catch {
+        // binding was already destroyed (e.g. by onWillDispose)
+      }
+      bindingRef.current = null;
+    }
+  }, []);
+
   // Shared file callbacks
   const sharedFilesCallbacksRef = useRef<Set<(files: SharedFile[]) => void>>(
     new Set(),
@@ -193,10 +209,7 @@ export function CollaborationProvider({
     }
 
     // Clean up Monaco binding
-    if (bindingRef.current) {
-      bindingRef.current.destroy();
-      bindingRef.current = null;
-    }
+    safeDestroyBinding();
 
     // Clean up WebSocket provider
     if (providerRef.current) {
@@ -550,10 +563,7 @@ export function CollaborationProvider({
       }
 
       // Clean up existing binding if switching files
-      if (bindingRef.current) {
-        bindingRef.current.destroy();
-        bindingRef.current = null;
-      }
+      safeDestroyBinding();
 
       // Calculate relative path from workspace root for consistent docName across machines
       let relativePath = filePath;
@@ -630,13 +640,10 @@ export function CollaborationProvider({
   );
 
   const unbindEditor = useCallback(() => {
-    if (bindingRef.current) {
-      bindingRef.current.destroy();
-      bindingRef.current = null;
-    }
+    safeDestroyBinding();
     currentFileRef.current = null;
     currentEditorRef.current = null;
-  }, []);
+  }, [safeDestroyBinding]);
 
   // Get current editor content (for saving during collaboration)
   const getCurrentEditorContent = useCallback((): string | null => {
