@@ -190,6 +190,7 @@ function InlineCreateInput({
         onFocus={handleFocus}
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
+        onKeyDownCapture={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
           e.stopPropagation();
           if (e.key === "Enter") {
@@ -491,6 +492,7 @@ function FileTreeNode({
             className="rename-input"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
+            onKeyDownCapture={(e) => e.stopPropagation()}
             onFocus={(e) => {
               if (renameBlurTimeoutRef.current) {
                 clearTimeout(renameBlurTimeoutRef.current);
@@ -500,6 +502,7 @@ function FileTreeNode({
             }}
             onBlur={handleRenameBlur}
             onKeyDown={(e) => {
+              e.stopPropagation(); // Stop global handlers like Monaco from intercepting keystrokes
               if (e.key === "Enter") {
                 if (renameBlurTimeoutRef.current) {
                   clearTimeout(renameBlurTimeoutRef.current);
