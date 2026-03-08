@@ -230,7 +230,7 @@ export function CollaborationProvider({
   }, []);
 
   const initializeYjs = useCallback(
-    (hostIp: string, port: number) => {
+    (hostIp: string, port: number, isHost = false) => {
       // Clean up any existing instances
       cleanup();
 
@@ -270,7 +270,15 @@ export function CollaborationProvider({
 
       // File operation sync via Y.Array
       const fileOpsArray = ydoc.getArray<FileOperation>("fileOps");
-      let fileOpsSynced = false;
+      // The host connects to its own relay server. Because no other peer is
+      // present at that point, its initial sync-step-1 message is lost and
+      // nobody ever responds with sync-step-2. The y-websocket provider
+      // therefore never emits the "sync" event for the host, which means
+      // fileOpsSynced would stay false forever — silently dropping every
+      // incoming file operation from clients.
+      // Fix: for the host we set fileOpsSynced = true immediately because
+      // the host's Y.Doc is authoritative (there is no history to replay).
+      let fileOpsSynced = isHost;
 
       fileOpsArray.observe((event) => {
         if (!fileOpsSynced) return;
@@ -476,7 +484,7 @@ export function CollaborationProvider({
       if (newStatus.hostIp) {
         // Host connects to localhost since the server is on their own machine
         // Using 127.0.0.1 ensures reliable local connection
-        initializeYjs("127.0.0.1", newStatus.port);
+        initializeYjs("127.0.0.1", newStatus.port, true);
       }
 
       setStatus(newStatus);
