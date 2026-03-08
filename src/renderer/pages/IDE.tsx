@@ -6,6 +6,7 @@ import {
   useCollaboration,
   WorkspaceFile,
   WorkspaceMetadata,
+  FileOperation,
 } from "../context/CollaborationContext";
 import FileTree from "../components/FileTree/FileTree";
 import EditorPanel from "../components/Editor/EditorPanel";
@@ -104,12 +105,13 @@ function IDEContent() {
   const [showCollabUsernames, setShowCollabUsernames] = useState(
     () => localStorage.getItem("ide-collab-usernames") !== "false",
   );
-  const [collabUsernameOpacity, setCollabUsernameOpacity] = useState(
-    () => Number(localStorage.getItem("ide-collab-username-opacity") ?? 80),
+  const [collabUsernameOpacity, setCollabUsernameOpacity] = useState(() =>
+    Number(localStorage.getItem("ide-collab-username-opacity") ?? 80),
   );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCollaborationOpen, setIsCollaborationOpen] = useState(false);
   const [newFileTrigger, setNewFileTrigger] = useState(0);
+  const [fileTreeRefreshKey, setFileTreeRefreshKey] = useState(0);
 
   useEffect(() => {
     // Add platform class to body for OS-specific styling
@@ -158,7 +160,10 @@ function IDEContent() {
   }, [showCollabUsernames]);
 
   useEffect(() => {
-    localStorage.setItem("ide-collab-username-opacity", String(collabUsernameOpacity));
+    localStorage.setItem(
+      "ide-collab-username-opacity",
+      String(collabUsernameOpacity),
+    );
     window.dispatchEvent(new Event("collab-settings-changed"));
   }, [collabUsernameOpacity]);
 
@@ -437,9 +442,9 @@ function IDEContent() {
       // During collaboration, get content from editor model (not React state)
       // since React state isn't updated during collaborative editing
       const content = collaboration.isActive
-        ? collaboration.getCurrentEditorContent() ?? activeTab.content
+        ? (collaboration.getCurrentEditorContent() ?? activeTab.content)
         : activeTab.content;
-      
+
       await window.electronAPI.fs.writeFile(activeTab.path, content);
       setTabs((prev) =>
         prev.map((t) =>
@@ -495,44 +500,142 @@ function IDEContent() {
         }
         return next;
       });
-    },
-    [],
-  );
 
-  const handleFileRenamed = useCallback((oldPath: string, newPath: string) => {
-    setTabs((prev) => {
-      let updated = false;
-      const next = prev.map((t) => {
-        // If it was a directory renamed, we should update paths inside it
-        if (
-          t.path === oldPath ||
-          t.path.startsWith(oldPath + "/") ||
-          t.path.startsWith(oldPath + "\\")
-        ) {
-          updated = true;
-          const newFilePath = newPath + t.path.slice(oldPath.length);
-          const newName = newFilePath.split(/[\\/]/).pop() || "";
-          return { ...t, path: newFilePath, name: newName };
-        }
-        return t;
-      });
-
-      if (updated) {
-        setActiveTabPath((current) => {
-          if (!current) return null;
-          if (
-            current === oldPath ||
-            current.startsWith(oldPath + "/") ||
-            current.startsWith(oldPath + "\\")
-          ) {
-            return newPath + current.slice(oldPath.length);
-          }
-          return current;
+      // Broadcast delete to collaboration peers
+      if (collaboration.isActive && workspaceRoot) {
+        const relativePath = deletedPath.startsWith(workspaceRoot)
+          ? deletedPath.slice(workspaceRoot.length + 1)
+          : deletedPath;
+        collaboration.broadcastFileOp({
+          type: "delete",
+          relativePath,
+          isDirectory: type === "directory",
         });
       }
-      return next;
+    },
+    [collaboration, workspaceRoot],
+  );
+
+  const handleFileRenamed = useCallback(
+    (oldPath: string, newPath: string) => {
+      setTabs((prev) => {
+        let updated = false;
+        const next = prev.map((t) => {
+          // If it was a directory renamed, we should update paths inside it
+          if (
+            t.path === oldPath ||
+            t.path.startsWith(oldPath + "/") ||
+            t.path.startsWith(oldPath + "\\")
+          ) {
+            updated = true;
+            const newFilePath = newPath + t.path.slice(oldPath.length);
+            const newName = newFilePath.split(/[\\/]/).pop() || "";
+            return { ...t, path: newFilePath, name: newName };
+          }
+          return t;
+        });
+
+        if (updated) {
+          setActiveTabPath((current) => {
+            if (!current) return null;
+            if (
+              current === oldPath ||
+              current.startsWith(oldPath + "/") ||
+              current.startsWith(oldPath + "\\")
+            ) {
+              return newPath + current.slice(oldPath.length);
+            }
+            return current;
+          });
+        }
+        return next;
+      });
+
+      // Broadcast rename to collaboration peers
+      if (collaboration.isActive && workspaceRoot) {
+        const relOld = oldPath.startsWith(workspaceRoot)
+          ? oldPath.slice(workspaceRoot.length + 1)
+          : oldPath;
+        const relNew = newPath.startsWith(workspaceRoot)
+          ? newPath.slice(workspaceRoot.length + 1)
+          : newPath;
+        collaboration.broadcastFileOp({
+          type: "rename",
+          relativePath: relOld,
+          newRelativePath: relNew,
+        });
+      }
+    },
+    [collaboration, workspaceRoot],
+  );
+
+  const handleFileCreated = useCallback(
+    (fullPath: string, name: string) => {
+      if (collaboration.isActive && workspaceRoot) {
+        const relativePath = fullPath.startsWith(workspaceRoot)
+          ? fullPath.slice(workspaceRoot.length + 1)
+          : fullPath;
+        collaboration.broadcastFileOp({
+          type: "create-file",
+          relativePath,
+          content: "",
+        });
+      }
+    },
+    [collaboration, workspaceRoot],
+  );
+
+  const handleFolderCreated = useCallback(
+    (fullPath: string) => {
+      if (collaboration.isActive && workspaceRoot) {
+        const relativePath = fullPath.startsWith(workspaceRoot)
+          ? fullPath.slice(workspaceRoot.length + 1)
+          : fullPath;
+        collaboration.broadcastFileOp({
+          type: "create-folder",
+          relativePath,
+        });
+      }
+    },
+    [collaboration, workspaceRoot],
+  );
+
+  // Subscribe to file operations from collaboration peers
+  useEffect(() => {
+    if (!collaboration.isActive || !workspaceRoot) return;
+
+    const unsub = collaboration.onFileOperation(async (op: FileOperation) => {
+      const fullPath = `${workspaceRoot}/${op.relativePath}`;
+      try {
+        switch (op.type) {
+          case "create-file":
+            await window.electronAPI.fs.createFile(fullPath);
+            if (op.content) {
+              await window.electronAPI.fs.writeFile(fullPath, op.content);
+            }
+            break;
+          case "create-folder":
+            await window.electronAPI.fs.createFolder(fullPath);
+            break;
+          case "delete":
+            await window.electronAPI.fs.deleteItem(fullPath);
+            handleFileDeleted(fullPath, op.isDirectory ? "directory" : "file");
+            break;
+          case "rename": {
+            const newFullPath = `${workspaceRoot}/${op.newRelativePath}`;
+            await window.electronAPI.fs.renameItem(fullPath, newFullPath);
+            handleFileRenamed(fullPath, newFullPath);
+            break;
+          }
+        }
+        setFileTreeRefreshKey((k) => k + 1);
+      } catch (err) {
+        console.error("Failed to apply remote file operation:", op.type, err);
+      }
     });
-  }, []);
+
+    return unsub;
+  }, [collaboration, workspaceRoot, handleFileDeleted, handleFileRenamed]);
 
   const openFolder = useCallback(async () => {
     const result = await window.electronAPI.fs.openFolderDialog();
@@ -656,6 +759,9 @@ function IDEContent() {
                   newFileTrigger={newFileTrigger}
                   onFileDeleted={handleFileDeleted}
                   onFileRenamed={handleFileRenamed}
+                  onFileCreated={handleFileCreated}
+                  onFolderCreated={handleFolderCreated}
+                  refreshTrigger={fileTreeRefreshKey}
                 />
               </Panel>
               <PanelResizeHandle className="resize-handle" />

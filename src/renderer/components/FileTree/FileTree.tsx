@@ -22,7 +22,7 @@ import { FileNode } from "../../../shared/types";
 import "./FileTree.css";
 
 const isWindows = navigator.userAgent.toLowerCase().includes("win");
-const INDENT_PX = isWindows ? 12 : 22;
+const INDENT_PX = isWindows ? 16 : 28;
 
 function getIcon(node: FileNode) {
   if (node.type === "directory")
@@ -258,8 +258,8 @@ function FileTreeNode({
 
   const startRename = () => {
     closeContextMenu();
+    setNewName(node.name);
     setRenaming(true);
-    setTimeout(() => renameInputRef.current?.select(), 50);
   };
 
   const commitRename = async () => {
@@ -333,9 +333,11 @@ function FileTreeNode({
         {renaming ? (
           <input
             ref={renameInputRef}
+            autoFocus
             className="rename-input"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
+            onFocus={(e) => e.target.select()}
             onBlur={commitRename}
             onKeyDown={(e) => {
               if (e.key === "Enter") commitRename();
