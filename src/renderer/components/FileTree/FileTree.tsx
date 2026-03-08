@@ -24,12 +24,23 @@ import "./FileTree.css";
 // Track global mouse interaction to distinguish programmatic focus steals from user clicks
 let isUserClicking = false;
 if (typeof window !== "undefined") {
-  window.addEventListener("mousedown", () => { isUserClicking = true; }, true);
-  window.addEventListener("mouseup", () => { isUserClicking = false; }, true);
-  window.addEventListener("keydown", () => { isUserClicking = true; }, true);
+  window.addEventListener("mousedown", () => { isUserClicking = true; }, true); 
+  window.addEventListener("mouseup", () => { isUserClicking = false; }, true);  
+  window.addEventListener("keydown", (e) => {
+    isUserClicking = true;
+    
+    // Shield FileTree inputs against global Monaco Editor capture keydown hooks
+    const target = e.target as HTMLElement | null;
+    if (
+      target &&
+      target.tagName === "INPUT" &&
+      (target.classList.contains("rename-input") || target.classList.contains("inline-create-input"))
+    ) {
+      e.stopImmediatePropagation();
+    }
+  }, true);   
   window.addEventListener("keyup", () => { isUserClicking = false; }, true);
 }
-
 const isWindows = navigator.userAgent.toLowerCase().includes("win");
 const INDENT_PX = isWindows ? 16 : 28;
 
@@ -190,8 +201,7 @@ function InlineCreateInput({
         onFocus={handleFocus}
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
-        onKeyDownCapture={(e) => e.stopPropagation()}
-        onKeyDown={(e) => {
+        onKeyDownCapture={(e) => {
           e.stopPropagation();
           if (e.key === "Enter") {
             // Clear any pending blur timeout so we don't double-submit
@@ -492,7 +502,6 @@ function FileTreeNode({
             className="rename-input"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            onKeyDownCapture={(e) => e.stopPropagation()}
             onFocus={(e) => {
               if (renameBlurTimeoutRef.current) {
                 clearTimeout(renameBlurTimeoutRef.current);
@@ -501,7 +510,7 @@ function FileTreeNode({
               e.target.select();
             }}
             onBlur={handleRenameBlur}
-            onKeyDown={(e) => {
+            onKeyDownCapture={(e) => {
               e.stopPropagation(); // Stop global handlers like Monaco from intercepting keystrokes
               if (e.key === "Enter") {
                 if (renameBlurTimeoutRef.current) {
