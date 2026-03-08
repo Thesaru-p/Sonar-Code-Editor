@@ -630,6 +630,26 @@ export function CollaborationProvider({
         providerRef.current.awareness,
       );
 
+      // Monkey-patch destroy() to be idempotent.  y-monaco registers an
+      // internal `monacoModel.onWillDispose(() => this.destroy())` callback
+      // that fires when React unmounts the <MonacoEditor> (key change on
+      // rename, etc.)  Our own cleanup / unbindEditor will then call
+      // destroy() a second time.  The original implementation calls
+      // `doc.off(…)` / `ytext.unobserve(…)` which emit a console.warn
+      // (not throw) when the handler is already gone.  Wrapping avoids the
+      // noisy "[yjs] Tried to remove event handler that doesn't exist."
+      const originalDestroy = binding.destroy.bind(binding);
+      let destroyed = false;
+      binding.destroy = () => {
+        if (destroyed) return;
+        destroyed = true;
+        originalDestroy();
+        // Also null-out our ref so safeDestroyBinding() becomes a no-op
+        if (bindingRef.current === binding) {
+          bindingRef.current = null;
+        }
+      };
+
       bindingRef.current = binding;
       currentFileRef.current = filePath;
       currentEditorRef.current = monacoEditor;

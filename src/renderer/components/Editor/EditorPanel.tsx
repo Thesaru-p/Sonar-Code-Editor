@@ -414,6 +414,8 @@ export default function EditorPanel({
               style={{
                 fontStyle:
                   tab.isPreviewFile && !tab.isDirty ? "italic" : "normal",
+                textDecoration: tab.isDeleted ? "line-through" : "none",
+                color: tab.isDeleted ? "red" : "inherit",
               }}
             >
               {tab.name}

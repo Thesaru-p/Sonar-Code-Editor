@@ -27,6 +27,7 @@ export interface OpenTab {
   language: string;
   type?: "file" | "preview" | "image";
   isPreviewFile?: boolean;
+  isDeleted?: boolean;
 }
 
 const IMAGE_EXTENSIONS = new Set([
@@ -261,7 +262,13 @@ function IDEContent() {
           if (autoSave) {
             setTabs((prev) =>
               prev.map((t) =>
-                t.path === tab.path ? { ...t, isDirty: false } : t,
+                t.path === tab.path ? { ...t, isDirty: false, isDeleted: false } : t,
+              ),
+            );
+          } else {
+            setTabs((prev) =>
+              prev.map((t) =>
+                t.path === tab.path ? { ...t, isDeleted: false } : t,
               ),
             );
           }
@@ -602,7 +609,7 @@ function IDEContent() {
       setTabs((prev) =>
         prev.map((t) =>
           t.path === activeTab.path
-            ? { ...t, content, isDirty: false, isPreviewFile: false }
+            ? { ...t, content, isDirty: false, isPreviewFile: false, isDeleted: false }
             : t,
         ),
       );
@@ -633,24 +640,24 @@ function IDEContent() {
   const handleFileDeleted = useCallback(
     (deletedPath: string, type: "file" | "directory") => {
       setTabs((prev) => {
-        const next = prev.filter((t) => {
+        const next = prev.map((t) => {
           if (type === "directory") {
-            return (
-              !t.path.startsWith(deletedPath + "/") &&
-              !t.path.startsWith(deletedPath + "\\") &&
-              t.path !== deletedPath
-            );
+            if (
+              t.path.startsWith(deletedPath + "/") ||
+              t.path.startsWith(deletedPath + "\\") ||
+              t.path === deletedPath
+            ) {
+              return { ...t, isDeleted: true };
+            }
+          } else if (t.path === deletedPath) {
+            return { ...t, isDeleted: true };
           }
-          return t.path !== deletedPath;
+          return t;
         });
-        if (next.length < prev.length) {
-          setActiveTabPath((current) => {
-            if (!current) return null;
-            const stillOpen = next.find((t) => t.path === current);
-            if (stillOpen) return current;
-            return next[next.length - 1]?.path || null;
-          });
-        }
+        /* 
+        // We no longer remove tabs on delete, so we don't automatically close them
+        if (next.length < prev.length) { ... }
+        */
         return next;
       });
 
@@ -720,6 +727,11 @@ function IDEContent() {
 
   const handleFileCreated = useCallback(
     (fullPath: string, _name: string) => {
+      setTabs((prev) =>
+        prev.map((t) =>
+          t.path === fullPath ? { ...t, isDeleted: false } : t
+        )
+      );
       const wsRoot = workspaceRootRef.current;
       if (collabActiveRef.current && wsRoot) {
         const relativePath = toRelativePath(fullPath, wsRoot);
@@ -786,6 +798,11 @@ function IDEContent() {
               if (op.content) {
                 await window.electronAPI.fs.writeFile(fullPath, op.content);
               }
+              setTabs((prev) =>
+                prev.map((t) =>
+                  t.path === fullPath ? { ...t, isDeleted: false } : t
+                )
+              );
               break;
             case "create-folder":
               await window.electronAPI.fs.createFolder(fullPath);
@@ -799,24 +816,20 @@ function IDEContent() {
               // Update tabs locally WITHOUT calling handleFileDeleted (which would
               // re-broadcast the op and create an infinite echo loop)
               setTabs((prev) => {
-                const next = prev.filter((t) => {
+                const next = prev.map((t) => {
                   if (op.isDirectory) {
-                    return (
-                      !t.path.startsWith(fullPath + "/") &&
-                      !t.path.startsWith(fullPath + "\\") &&
-                      t.path !== fullPath
-                    );
+                    if (
+                      t.path.startsWith(fullPath + "/") ||
+                      t.path.startsWith(fullPath + "\\") ||
+                      t.path === fullPath
+                    ) {
+                      return { ...t, isDeleted: true };
+                    }
+                  } else if (t.path === fullPath) {
+                    return { ...t, isDeleted: true };
                   }
-                  return t.path !== fullPath;
+                  return t;
                 });
-                if (next.length < prev.length) {
-                  setActiveTabPath((current) => {
-                    if (!current) return null;
-                    const stillOpen = next.find((t) => t.path === current);
-                    if (stillOpen) return current;
-                    return next[next.length - 1]?.path || null;
-                  });
-                }
                 return next;
               });
               break;
